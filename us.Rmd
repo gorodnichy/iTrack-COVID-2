@@ -1,0 +1,37 @@
+---
+title: "iTrack COVID - US"
+# subtitle: Lunch and Learn: R101 (https://ivi-m.github.io/R-Ottawa/101.html)
+# author: Dmitry Gorodnichy (www.gorodnichy.ca)
+runtime: shiny
+output: 
+  flexdashboard::flex_dashboard:
+    social: menu
+    source_code: embed
+    orientation: columns
+    vertical_layout: fill
+    logo: covid-48.png
+    favicon: covid-48.png 
+    navbar: 
+      - { title: "Canada", href: "https://itrack.shinyapps.io/covid?region=Canada&N=50&national=0", align: right }
+      - { title: "US", href: "https://itrack.shinyapps.io/covid?region=US&N=50&national=0#section-map", align: right }
+      - { title: "Europe", href: "https://itrack.shinyapps.io/covid?region=Europe&N=50&national=1#section-map", align: right }
+---
+<!-- us.Rmd = session009.Rmd = 01-board-App.Rmd -->
+<!-- Run this code at https://itrack.shinyapps.io/covid/us.Rmd -->
+<!-- Learn how this code is built at https://ivi-m.github.io/R-Ottawa/101.html -->
+
+```{r readCovidUS , include=FALSE}
+library(flexdashboard)
+
+knitr::opts_chunk$set(echo = FALSE)
+source("01-read.R")
+
+dtGeo <- readGeo()
+dtGeo[city == 'New York City', city:='New York']
+
+dtData <- readCovidUS() 
+dateMax<- dtData$date %>% max %>% ymd; dateMax
+```
+
+```{r session09_base.Rmd, child = 'session09_base.Rmd'}
+```

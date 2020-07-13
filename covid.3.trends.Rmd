@@ -1,0 +1,146 @@
+
+# Trends and Models {data-orientation=rows}  
+
+<!-- # Trends for tomorrow -->
+
+<!-- # Dynamics analysis -->
+<!-- # Trends analysis -->
+<!-- # Detailed analysis -->
+<!-- # Full dynamics analysis -->
+
+<!-- ## Trends analysis { data-orientation=rows }  -->
+
+<!-- ### Pandemic spread models -->
+
+## Dynamic trends and models {data-height=940}
+### Pandemic dynamics
+
+```{r r.gConfirmed}
+
+r.gConfirmed <-  reactive({
+  
+  dt00 <- r.dt()
+  
+  # dt00 <- addDerivatives(dt00, colsCases, colsGeo, input$convolution-1)
+  
+  # if (input$normalize == T & dt00$population %>% min(na.rm = T) > 1111)
+  #   dt00[ , (cols3):= lapply(.SD, function(x) {as.integer(x/population*1000000)}),.SDcols=cols3]
+  # 
+
+  
+  #     dt00 <- r.dt()
+  # dt <- dt00[date==input$dateToday]
+  # dt <-  dt[ , region:=reorder(region, get(input$sortby))] [ order(-region)][1:input$showN]
+  
+
+  
+  if ( is.null(input$region)) {
+  
+  # if ( is.null(input$country)) {
+      # if (  dt00$region %>% unique %>% length == 0) {
+    g <- gQuote
+    
+  } else {
+    g <- plotTrends(dt00, input)
+  } 
+  
+})
+
+renderPlot( {
+  print( r.gConfirmed() )
+})
+```
+
+> The plot shows the dynamics for the top search results, sorted according to the search criteria. Vertical yellow lines indicate last two week period.
+
+<!-- > The plot shows the speed (new cases per day) and acceleration (daily change in speed) in the number o infected (orange) and the number of deaths (red) for the top search results, sorted according to the selected criteria. Change in the number of infected cases since yesterday is marked by arrow. -->
+
+
+
+<!-- ## .... Upper Row {data-height=170} -->
+<!-- data-orientation=rows } -->
+
+
+<!-- ### Plot attributes {data-width=100} -->
+<!-- ### Model attributes {data-width=100} -->
+<!-- ### Infected cases metrics {data-width=110} -->
+<!-- ### Plot attributes {data-width=110} -->
+<!-- ### Dynamics attributes {data-width=100} -->
+## Dynamic metrics to show {data-height=60}
+
+
+<!-- ### Notes and parameters -->
+
+
+```{r radioButtons}
+
+
+dateInput("date",
+          label =  h4("Change start date:"), weekstart=1,
+          min = dateMax %>% ymd() - 30, #"2020-03-01",
+          max = dateMax,
+          value = dateMax - 30 
+)
+
+
+checkboxInput("scale", h4("Keep scale constant"), F)
+
+
+
+# h6("* where population data available")
+# h6("(* where population size is known)")
+
+
+
+# 
+# # checkboxInput("recovered", "Include recovered statistics", F)
+# # checkboxInput("deaths", "Include death statistics", F)
+# checkboxInput("recovered", "Show recovery rate", F)
+# checkboxInput("deaths", "Show death rate", F)
+
+
+radioButtons("fRadio", h4("Show"), # LPlot: Metric Functional:", # "f", "Functionals:", Show Compute
+             c(
+               # ".. raw data (records/day)" = "",
+               # "New cases (Speed)" = "Speed",
+               # "Speed change (Acceleration)" = "Accel.",
+               # "Growth (R0)" = "Growth.",
+               # "Growth (R0) change" = "Growth.Accel"
+               "Total cases" = "Total",
+               "Speed" = "Speed",
+               "Acceleration" = "Accel.",
+               "Growth (R0)" = "Growth."
+               # "Growth (R0) change" = "Growth.Accel"
+               # ,
+               # "Mortality rate" = "deathRate"
+             ), inline=T,
+             selected = "Speed"
+)
+
+
+# hr()
+
+# h4("Step 3: Model and Forecast ")
+#
+checkboxInput("trend", h4("Overlay model"), T)
+# checkboxInput("predict", "Show predictions (COMING SOON)", F)
+
+
+
+# sliderInput("convolution", "Adjust model precision:", #"Convolution filter size", # "Compute over:", #Averaging  window size, #Precision
+sliderInput("convolution", h4("Convolution filter:"), #"Convolution filter Averaging window
+            min = 2, max = 10, post  = " days",
+            value = 5)
+
+
+
+
+```
+
+
+<!-- ## Notes {data-height=40} -->
+
+
+
+
+

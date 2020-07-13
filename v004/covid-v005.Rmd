@@ -1,0 +1,513 @@
+---
+title: "iTrack Covid"
+date: "(`r format(Sys.time(), '%d %B, %Y')`)"
+# author: Dmitry Gorodnichy
+output: 
+  flexdashboard::flex_dashboard:
+    # theme: simplex # journal # theme: simplex
+    orientation: rows
+    social: menu
+    # source_code: embed
+    vertical_layout: scroll # fill #scroll #fill
+runtime: shiny       
+---
+
+
+```{r readData, include=FALSE}
+
+# setwd("/home/dmitry/GitHub/iTrack-covid-priv")
+source("covid-read.R")
+
+
+
+#------------------ Colours ------------------
+# Set colors
+# https://www.w3.org/TR/css-color-3/#svg-color
+
+confirmed_color <- "purple" #"yellow" #" "purple"
+active_color <- "#3f77b4"
+speed_color <- "#4f77b4"
+accel_color <- "#5f77b4"
+recovered_color <- "green" #"forestgreen"
+death_color <- "red"
+
+STR_ALL <- "[ All ]"
+STR_TOTAL <- "[Show Total]"
+
+if (F) {
+  input <- list()
+  #input$date <- dtJHU$date %>% max
+  input$country <- "Canada"
+  input$state <- "(National)"
+  input$state <- "Ontario"
+  input$city <- "Ottawa"
+  input$f = "Speed"
+  input$normalize = T
+  input$convolution = 7
+}
+
+
+```
+
+# Canada
+
+```{r readCanada, include=F}
+
+
+# library(coronavirus)# data(coronavirus)# coronavirus %<>%  data.table()
+
+# g <- ggplot()
+
+
+# dtAll <- dtJHU <- 
+#   dt <- 
+#   dt0 <- # 1st level
+#   dt00 <- # 2nd level
+#   dtToday <-  
+#   dtGeo <- data.table()   # All, country, state
+# dtCases <- dtMortality <- dtRecovered <- dtTesting <-  dtGeoCa <- data.table()
+
+#dtGeo <-readGeo()
+#dtGeoCa <- readGeoCa()
+
+#coronavirus  <- fread("https://github.com/RamiKrispin/coronavirus-csv/raw/master/coronavirus_dataset.csv") 
+#dtJHU <-readCovidJHU(coronavirus) # reads dtJHU data readCovidJHU
+#dtAll <- dtJHU
+
+#dtUS <- readCovidUS()
+#dtCa <- readCovidUofT()
+#
+strCovid <- "https://docs.google.com/spreadsheets/d/1D6okqtBS3S2NRC7GFVHzaZ67DuTw7LX49-fqSLwJyeo/"
+sheets <- c("Cases" ,"Mortality" ,"Recovered", "Testing" ,"Codebook")
+
+
+fOpen <- function(i, col1name) {
+  strCovidCsv <- paste0(strCovid, "gviz/tq?tqx=out:csv&sheet=", sheets[i])
+  dt <- fread(strCovidCsv, header=T, select= 1:15, stringsAsFactors = F)
+  setnames (dt, c(col1name, names (dt) [-1] ) )
+  return(dt)
+}
+
+fRemoveV <- function(dt) {
+  str <- names(dt)
+  cols <- str [ str_detect(str, regex("^V+")) ]
+  dt [ , (cols):=NULL ]
+  print(str)
+  return(dt)
+}
+
+dtCases <<- fOpen(1, "case_id")  %>% fRemoveV() %>%  lazy_dt() %>% select(1:12) %>% as.dt() 
+dtMortality  <<- fOpen(2,"death_id") %>% fRemoveV() %>%  lazy_dt() %>% select(c(1:9, 11)) %>%  as.dt()
+dtRecovered  <<- fOpen(3,"date_recovered") %>% fRemoveV() %>%  lazy_dt() %>% select(1:4) %>% as.dt()
+dtTesting  <<- fOpen(4,"date_testing") %>% fRemoveV() %>%  lazy_dt() %>% select(1:4) %>% as.dt()
+
+
+setnames(dtCases, "date_report", "date")
+setnames(dtMortality, "date_death_report", "date")
+setnames(dtRecovered, "date_recovered", "date")
+setnames(dtTesting, "date_testing", "date")
+
+setnames(dtCases, "health_region", "city")
+setnames(dtMortality, "health_region", "city")
+
+setnames(dtCases, "province", "state")
+setnames(dtMortality, "province", "state")
+setnames(dtRecovered, "province", "state")
+setnames(dtTesting, "province", "state")
+
+
+dtCases [ , date := dmy(date)]
+dtMortality [ , date := dmy(date)]
+dtRecovered [ , date := dmy(date)]
+dtTesting [ , date := dmy(date)]
+
+# # # . state level ----
+
+dtDailyCasesTotals <- dtCases[ , .(cases=.N), keyby = c("date", "state")]; dtDailyCasesTotals$type="confirmed"
+dtDailyMortTotals  <- dtMortality[ , .(cases=.N), keyby = c("date", "state")]; dtDailyMortTotals$type="death"
+dtRecoveredTotals  <- dtRecovered[ , .(cases=.N), keyby = c("date", "state")]; dtRecoveredTotals$type="recovered"
+
+dt <- dtDailyCasesTotals %>% rbind (dtDailyMortTotals) %>% rbind(dtRecoveredTotals)
+dt$country="Canada"
+dt$city="[Provincial Total]"
+setkey(dt, date, country, state, city,type)
+
+dt0 <- dcast(dt, date+country+state+city ~ type, value.var="cases")
+setcolorder(dt0,  c("date",  "country","state", "city",  "confirmed","death",  "recovered") )
+
+# . city level ####
+
+dtDailyCasesTotals <- dtCases[ , .(cases=.N), keyby = c("date", "state", "city")]; dtDailyCasesTotals$type <- "confirmed"
+dtDailyMortTotals  <- dtMortality[ , .(cases=.N), keyby = c("date", "state", "city")]; dtDailyMortTotals$type="death"
+
+dt <- dtDailyCasesTotals %>% rbind (dtDailyMortTotals)
+dt$country="Canada"
+setkey(dt, date, country, state, city, type)
+
+
+dt00 <- dcast(dt, date+country+state+city ~ type, value.var="cases")
+dt00$recovered = NA
+
+# DT::datatable(dtAll)
+
+setcolorder(dt00,  c("date",  "country", "state",  "city", "confirmed","death",  "recovered") )
+
+dtAll <<- dt0 %>% rbind(dt00)
+
+dtAll[, region:=paste0(str_trunc(state, 3, ellipsis = ""), ": ", city)]
+dtAll
+
+
+dtAll [, active := confirmed - ifelse(is.na(recovered), 0, recovered) - ifelse(is.na(death), 0, death)]
+
+dtAll[is.na(confirmed)]
+
+colMetrics <<- c("confirmed","death",  "recovered", "active")
+colGroups <<- c( "country", "city", "state")
+
+dtAll [, (colMetrics):= lapply(.SD, tidyr::replace_na, 0), .SDcol = colMetrics]
+
+dateMax <<- dtAll[confirmed>0]$date %>% max; dateMax
+dateMin <<- dtAll[confirmed>0]$date %>% min; dateMin
+datePlotFrom <- ymd("2020-03-12")
+
+addDerivatives(dtAll, colMetrics, colGroups) #, input$convolution)
+
+
+
+```
+
+
+
+
+## Make selection: {.sidebar}
+
+
+
+```{r selectInput}
+
+# h4("Step 1: Analyze Risks")
+
+# selectInput('country',
+#             h5(paste0 ("Select Country (out of ", dtAll$country %>% unique %>% length, "):") ),
+#             multiple=F,
+#             selected = "Canada",
+#             choices = c(
+#               #STR_ALL,
+#               dtAll$country %>% unique  )
+# )
+# 
+
+r.dt0  <- reactive({
+  dtAll
+  # dtAll[ country %in% input$country]
+})
+
+renderUI({
+  selectInput('state',
+              # paste0 ("Select Provinces (out of ", r.dt0()$state %>% unique %>% length - 1, "):"),
+                            h5(paste0 ("Add Provinces (Press DEL to delete):")),
+              multiple=T, selected = c("Ontario", "Quebec"), 
+              choices = c(r.dt0()$state %>% unique %>% sort() )  )
+})
+
+r.dt00  <- reactive({
+  r.dt0()[ state %in% input$state ]
+  # if (STR_ALL %in% input$state)
+  #   r.dt0()
+  # else
+  #   r.dt0()[ state %in% input$state ]
+  
+})
+
+renderUI({
+  selectInput('city',
+              h5(paste0 ("Add Health Regions (out of ", r.dt00()$city %>% unique %>% length - 1, "):") ),
+              multiple=T,
+              # selected = STR_ALL,
+                            selected = c("Ont: Ottawa","Que: Capitale-Nationale"),
+              # selected = c("Ottawa"),
+              choices = c(STR_ALL, r.dt00()$region %>% unique %>% sort() )  )
+})
+#
+# radioButtons("sort", "Sort results:",
+#                choices=c("From most to least  infected " = "confirmedTotal",
+#                  "From fastest to slowest spreading" = "confirmedSpeed",
+#                  "From fastest to slowest accelerating" = "confirmedGrowth",
+#                #  "Acceleration" = "confirmedAccel.",
+#                  "Alphabetically" = "region"), 
+#              selected = "confirmedSpeed", 
+#              inline=F)
+# 
+# 
+# 
+# renderUI({
+#   sliderInput("showN", "Limit number of results to:", 
+#               min = 1, max = r.dt00()$city %>% unique %>% length - 1, 
+#               post  = " regions",
+#               value = 15)
+# })
+# 
+# 
+
+hr()
+# h4("Step 2: Visualize Results")
+
+# checkboxInput("normalize", "Normalize (per Million)", T)
+checkboxInput("scale", "Fix scale across regions", F)
+# checkboxInput("provincial", "Include provincial totals", F)
+
+radioButtons("fRadio", "Show: ", # Metric Functional:", # "f", "Functionals:", Show Compute
+                   c(
+                     "Raw data (records/day)" = "",
+                     "Total infected" = "Total",
+                     "Speed" = "Speed",
+                     "Acceleration" = "Accel.",
+                     # "Growth: N/N'" = "Growth0",
+                      "Growth factor" = "Growth"
+                   ), inline=F,
+                   selected = "Speed"
+)
+
+
+sliderInput("convolution", "Adjust precision:", #"Convolution filter size", # "Compute over:", #Averaging  window size, #Precision
+            min = 3, max = 13, post  = " days",
+            value = 7)
+
+
+
+dateInput("date",
+          label = h5("Adjust starting date:"), weekstart=1,
+          min = "2020-03-01",
+          max= format(Sys.time(), "%Y-%m-%d"),
+          value = "2020-03-25"  # format(Sys.time(), "%Y-%m-%d") # "%d %B, %Y")`
+)
+
+
+r.dt000  <- reactive({
+ if (STR_ALL %in% input$city )        
+   dt000 <- r.dt00() 
+ else
+   dt000 <- r.dt00()[ region %in% input$city ]  
+    
+  # dt000 <- r.dt00()[ city %in% input$city ] 
+  # dt000 <- r.dt00()
+  # if (!input$provincial)
+  #   dt000 <- dt000[city!="[Provincial Total]"]
+  
+# 
+#   setkey(dt000, input$sort)
+#     dt000 <- dt000[1:input$sortN] 
+  
+  dt000 <- dt000[ date >= input$date]
+  
+  colMetrics <<- c("confirmed","death",  "recovered", "active")
+  colGroups <<- c( "country", "city", "state")
+  addDerivatives(dt000, colMetrics, colGroups,input$convolution)
+  
+  dt000
+  
+  dt000 [ , deathRate:= as.integer(deathTotal / confirmedTotal * 100 )]
+  dt000 [ , recoveryRate:= as.integer(recoveredTotal / confirmedTotal * 100 )]
+  dt000 [ , activeTotal.:= confirmedTotal - recoveredTotal - deathTotal]
+  
+})
+
+
+r.dt000cols  <- reactive({
+  r.dt000() [date==dateMax |    date==dateMax-1 |    date==dateMax-7 |  date==dateMax-30 ]  [
+    , .(region, date,
+        confirmedTotal, confirmedSpeed, confirmedAccel., confirmedGrowth., 
+        activeTotal, 
+        deathRate,  recoveryRate, 
+        confirmedAccel, confirmedGrowth
+    )] 
+})
+
+
+
+# hr()
+
+
+# # checkboxInput("recovered", "Include recovered statistics", F)
+# # checkboxInput("death", "Include death statistics", F)
+# checkboxInput("recovered", "Show recovery rate", F)
+# checkboxInput("death", "Show death rate", F)
+
+hr()
+# h4("Step 3: Model and Forecast ")
+
+checkboxInput("trend", "Overlay model", T)
+checkboxInput("predict", "Show predictions (COMING SOON)", F)
+
+```
+
+```{r r.dt00, include = F}
+
+# See in select
+
+```
+
+## .... Upper Row {data-height=830 .tabset .tabset-fade }
+
+
+<!-- ##### \ \ Data is loaded  from [UoT Database](https://art-bd.shinyapps.io/covid19canada/). This database  was last updated on  `r dtAll$date %>% max %>% format("%d %B, %Y")`. To reload data, press [here](https://itrack.shinyapps.io/covid/). -->
+
+##### \ \ Data is loaded  from the [University of Toronto Coronavirus database](https://art-bd.shinyapps.io/covid19canada/). It was last updated on  `r dtAll$date %>% max %>% format("%d %B, %Y")`. To reload the data, press [here](https://itrack.shinyapps.io/covid/).
+
+
+###  Plot (for printing)
+
+```{r}
+
+r.g <-  reactive({
+   
+  cols <- c("confirmed", "recovered", "death", "active")
+  cols3 <- paste0(cols, input$fRadio)
+  
+  
+  # dt00 <<- r.dt00()[confirmed>0][date>ymd("2020-03-10")]
+    dt00 <<- r.dt000()
+  
+  setcolorder(dt00, "date")
+  
+  # 
+  # if (input$normalize == T)
+  #   dt00[ , (cols3):= lapply(.SD, function(x) {as.integer(x/population*1000000)}),.SDcols=cols3]
+  # 
+
+  g <<- ggplot( dt00  ) +
+    
+    #facet_grid(reorder(state, Long)~.) +
+    #
+    facet_wrap(.~region,  
+               scales=ifelse(input$scale, "fixed", "free")   
+               ) +
+    scale_y_continuous(limits = c(0, NA)) +
+        geom_vline(xintercept=dateMax, col = "orange", size=2) +
+    geom_point(aes_string("date", cols3[1]), alpha=0.5, col="purple", size=2) +
+    geom_line(aes_string("date", cols3[1]), alpha=0.5, col="purple", size=1) +
+    
+ 
+
+    theme_bw() +
+    scale_x_date(date_breaks = "1 week",
+                 date_minor_breaks = "1 day", date_labels = "%b %d") +
+    labs(
+      #title=paste0("Pandemic situation in ", input$state), # ": Historical vs. Predicted"),
+       title=paste0("", my.paste(input$state, ", "), ". Last updated: ", dateMax ), # ": Historical vs. Predicted"),
+      #  title=paste0("", input$country), # ": Historical vs. Predicted"),
+      # subtitle= "The number of Confirmed, Recovered, Death cases",
+      subtitle= paste0("Pandemic ", input$fRadio, " over time"),
+      caption=paste0("Generated on ",  format(Sys.time(), "%d %B, %Y") ," by iTrack Covid (https://itrack.shinyapps.io/covid)"),
+      #subtitle=paste0("Dates: ", dtJHU$date %>% min, " - ", dtJHU$date %>% max),
+      # y=paste("Cases", input$fRadio, ifelse(input$normalize, " (per Million)","")),
+            y=paste("Cases"),
+      x=NULL
+    )
+
+
+  if (input$trend ) {
+
+    # if (input$trend_SE ) {
+    g <- g + geom_smooth(aes_string("date", cols3[1]), size = 1, level=0.99,
+                         method= "gam", # method= "gam",  formula = y ~ s(x,k=3),
+                         # method = "lm", formula = y ~ poly(x, 4),
+                         col = "black", linetype = 3, alpha=0.5)
+    # } else
+    #   {
+    #   g <- g + geom_smooth(aes_string("date", cols3[1]), size = 1, se = FALSE,
+    #                        method= "gam",   # method= "gam",  formula = y ~ s(x,k=3),
+    #                        # method = "lm", formula = y ~ poly(x, 4),
+    #                        col = "black", linetype = 3, alpha=0.5)
+    # }
+
+  }
+  
+})
+
+renderPlot( {
+  print( r.g() )
+})
+```
+
+
+###  Plot (Interactive)
+
+```{r}
+
+renderPlotly( {
+  ggplotly(r.g())
+})
+
+
+```
+
+
+### Table (interactive)
+
+
+```{r}
+
+DT::renderDataTable({
+
+# 
+#   dt0 <<- r.dt000cols()
+#   
+#   ##cols <- c("country", "lng", "lat", "population")
+#   # dt00[, (cols):=NULL]
+#   dt0[date==dateMax |    date==dateMax-1 |    date==dateMax-7 |  date==dateMax-30 ]     [
+#     , .(city,date,
+#         #                    confirmedTotal,deathTotal,  recoveredTotal,
+#         # confirmedSpeed, deathSpeed, recoveredSpeed
+#         confirmedSpeed, confirmedAccel.,
+#         deathSpeed, deathAccel.,
+#         recoveredSpeed, recoveredAccel.
+# 
+#         # confirmedTotal, confirmedSpeed, confirmedAccel.,  confirmedTotalPer100K,
+#         # deathTotal, deathSpeed, deathAccel., deathTotalPer100K
+#     )] %>%
+    
+    DT::datatable( r.dt000cols(),
+      filter ="top",
+      # colnames = c("Country", "Confirmed", "Recovered", "Death"),
+      options = list(
+
+        searchHighlight = TRUE,
+       scrollX = TRUE,
+       #scrollX='400px',
+        scrollY = TRUE,
+        bPaginate = T,
+        pageLength = 14)
+    )
+})
+
+```
+
+
+### Table (for printing)
+```{r}
+
+renderPrint({
+  # dt0 <<- dtAll[ country == input$country  & state == input$state ] 
+  
+  r.dt000cols() %>% knitr::kable()
+})
+
+```
+
+
+
+
+<!-- ```{r covid.2.us.Rmd, child = 'covid.2.us.Rmd'} -->
+<!-- ``` -->
+
+
+
+
+<!-- ```{r covid.8-old-tracking.Rmd, child = 'covid.8-old-tracking.Rmd'} -->
+<!-- ``` -->
+
+```{r covid.9.help.Rmd, child = 'covid.9.help-2.Rmd'}
+```
+

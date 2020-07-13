@@ -1,0 +1,125 @@
+# Settings
+
+## Adjust settings
+
+
+### Search settings
+
+#### Change region:
+
+###### (* Regions are reordered by search criteria)
+
+<!-- ###### ** Regions are reordered by criteria - for easier selection -->
+```{r}
+# country ----------------------------
+renderUI({
+  
+  
+  # dtRegion <- 
+  
+  selectInput('country',
+              # h5(paste0 ("Country (out of ", dtAll$country %>% unique %>% length, "):") ),
+              h5(paste0 ("Add Country (Press DEL to delete):")),
+               width = "100%", 
+              multiple=T,
+             # selected = c("Canada"),
+              # selected = c("Canada", "US"),
+               selected = STR_ALL,
+              
+              #              choices = list(
+              #   "Europe" = c("Germany", "Spain"),
+              #   "North America" = c("Canada", "United States" = "USA")
+              # )
+              
+              # choices = c(STR_ALL, dtGeo$country %>% unique)
+              # choices = c(STR_ALL, dtGeo[state==STR_TOTAL]$country %>% unique)
+              choices = c(r.dtRegion()[order(ifelse(input$ascending, 1, -1)*get(input$sortby))]$country %>% unique)
+             
+                           # choices = c(STR_ALL, dtGeo[state==STR_TOTAL][order(ifelse(input$ascending, 1, -1)*get(input$sortby))]$country %>% unique)
+              # choices = c( dtGeo[order(get(input$order.regions))]$country %>% unique)
+  )
+  
+})
+
+
+renderUI({
+  selectInput('state',
+              # paste0 ("Select Provinces (out of ", r.dt0()$state %>% unique %>% length - 1, "):"),
+              h5(paste0 ("Add State / Province:")),
+               width = "100%", 
+              multiple=T, 
+              # selected = c("Ontario", "Quebec"),
+              selected = STR_ALL,
+              # selected = c("Ontario", "Quebec", "New York"),
+                            # choices = c(STR_ALL, r.dt0()$state %>% unique  )
+              choices = c(STR_ALL, r.dt0()[order(ifelse(input$ascending, 1, -1)*get(input$sortby))]$state %>% unique  )
+  )
+})
+
+renderUI({
+  selectInput(
+    'city',
+    h5(paste0 ("Add City / County") ),
+     width = "100%", 
+    # h5(paste0 ("Add City /Health Regions (out of ", r.dt00()$city %>% unique %>% length - 1, "):") ),
+    multiple=T,
+    #selected= c("Toronto","Montreal", "New York"),
+    selected = STR_ALL,
+        # choices = c(STR_ALL,  r.dt00()$city %>% unique  )
+    choices = c(STR_ALL,  r.dt00()[order(ifelse(input$ascending, 1, -1)*get(input$sortby))]$city %>% unique  )
+  )
+})
+
+
+
+
+# 
+# 
+# radioButtons("order.regions", h5("Rearrange menus by:"),
+#              choices=c(
+#              #  "Latitude " = "lat",
+#                "Longitude " = "lng",
+#                "Name" = "region",
+#              #  "Population*" = "population",
+#                "Number of cases" = "confirmedTotal"
+#              #  "Mortality rate" = "deathRate"
+#              ),
+#              selected = "lng",
+#              inline=T)
+# 
+
+```
+
+### Modeling settings
+
+
+```{r}
+
+
+dateInput("dateToday",
+          label = h4("Change current date:"), weekstart=1,
+          min = dateMax %>% ymd() - 30, #"2020-03-01",
+          max = dateToday,
+          value = dateMax
+)
+```
+
+
+```{r}
+
+# sliderInput("convolution", "Adjust model precision:", #"Convolution filter size", # "Compute over:", #Averaging  window size, #Precision
+sliderInput("convolution", "Change averaging window filter:", #"Convolution filter
+            min = 2, max = 14, post  = " days",
+            value = 7)
+
+
+
+dateInput("date",
+          label =  h4("Change start date:"), weekstart=1,
+          min = dateMax %>% ymd() - 30, #"2020-03-01",
+          max = dateMax,
+          value = dateMax - 30 
+)
+
+
+```

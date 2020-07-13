@@ -1,0 +1,13 @@
+!table
+!version 300
+!charset WindowsLatin1
+!edit_version 800
+
+Definition Table
+  Type NATIVE Charset "WindowsLatin1"
+  Fields 5
+    OBJECTID Float ;
+    PR_HRUID Char (254) ;
+    ENG_LABEL Char (254) ;
+    FRE_LABEL Char (254) ;
+    PEER Char (254) ;

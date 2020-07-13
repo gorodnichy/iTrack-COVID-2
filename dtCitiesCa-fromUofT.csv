@@ -1,0 +1,88 @@
+health_region,province,N
+Calgary,Alberta,408
+Edmonton,Alberta,149
+Central,Alberta,46
+North,Alberta,45
+South,Alberta,12
+Not Reported,Alberta,1
+Vancouver Coastal,BC,444
+Fraser,BC,291
+Interior,BC,77
+Island,BC,60
+Northern,BC,12
+Winnipeg,Manitoba,60
+Prairie Mountain,Manitoba,5
+Southern Health,Manitoba,4
+Interlake-Eastern,Manitoba,3
+Eastern,NL,126
+Labrador-Grenfell,NL,5
+Central,NL,3
+Western,NL,1
+NWT,NWT,1
+Zone 3 (Fredericton area),New Brunswick,23
+Zone 1 (Moncton area),New Brunswick,17
+Zone 2 (Saint John area),New Brunswick,15
+Zone 5 (Campbellton area),New Brunswick,7
+Zone 4 (Edmundston area),New Brunswick,4
+Not Reported,Nova Scotia,117
+Zone 4 - Central,Nova Scotia,4
+Zone 1 - Western,Nova Scotia,1
+Not Reported,Ontario,772
+Toronto,Ontario,168
+York,Ontario,78
+Peel,Ontario,70
+Hamilton,Ontario,32
+Ottawa,Ontario,32
+Durham,Ontario,28
+Haliburton Kawartha Pineridge,Ontario,25
+Waterloo,Ontario,21
+Halton,Ontario,19
+Middlesex-London,Ontario,17
+Kingston Frontenac Lennox & Addington,Ontario,14
+Simcoe Muskoka,Ontario,14
+Niagara,Ontario,8
+Peterborough,Ontario,7
+Grey Bruce,Ontario,5
+Hastings Prince Edward,Ontario,5
+Lambton,Ontario,5
+Sudbury,Ontario,5
+Eastern,Ontario,4
+Porcupine,Ontario,4
+Wellington Dufferin Guelph,Ontario,4
+Windsor-Essex,Ontario,4
+Southwestern,Ontario,3
+Brant,Ontario,2
+Chatham-Kent,Ontario,2
+Northwestern,Ontario,2
+Algoma,Ontario,1
+Huron Perth,Ontario,1
+Leeds Grenville and Lanark,Ontario,1
+North Bay Parry Sound,Ontario,1
+Timiskaming,Ontario,1
+Prince Edward Island,PEI,11
+Montréal,Quebec,1361
+Estrie,Quebec,296
+Montérégie,Quebec,257
+Laval,Quebec,180
+Capitale-Nationale,Quebec,164
+Lanaudière,Quebec,144
+Mauricie,Quebec,122
+Laurentides,Quebec,120
+Chaudière-Appalaches,Quebec,86
+Outaouais,Quebec,28
+Abitibi-Témiscamingue,Quebec,27
+Saguenay,Quebec,18
+Côte-Nord,Quebec,17
+Gaspésie-Îles-de-la-Madeleine,Quebec,9
+Bas-Saint-Laurent,Quebec,8
+Nord-du-Québec,Quebec,1
+Nunavik,Quebec,1
+Terres-Cries-de-la-Baie-James,Quebec,1
+Not Reported,Repatriated,13
+Saskatoon,Saskatchewan,72
+Regina,Saskatchewan,34
+North,Saskatchewan,33
+Central,Saskatchewan,10
+South,Saskatchewan,4
+Far North,Saskatchewan,3
+Yukon,Yukon,4

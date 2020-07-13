@@ -1,0 +1,850 @@
+---
+title: "iTrack Covid"
+date: "(`r format(Sys.time(), '%d %B, %Y')`)"
+# author: Dmitry Gorodnichy
+output: 
+  flexdashboard::flex_dashboard:
+    # theme: simplex # journal # theme: simplex
+    orientation: rows
+    social: menu
+    # source_code: embed
+    vertical_layout: fill #scroll #fill
+runtime: shiny       
+---
+
+
+```{r readCov, include=F}
+# setwd("/home/dmitry/GitHub/iTrack-covid-priv")
+source("covid-read.R")
+
+colsGeo <- c("country",   "state",       "city")
+colsCases <- c("confirmed", "deaths", "recovered")
+
+dtGeo <- readRDS("dtGeoAll-0.Rds") 
+# REDO dtGeo !! No nead to read from elsewhere - get it from dtAll.
+# Some data in dtGeo are NOT in dtAll !!
+
+dtGeo[, (colsGeo):=lapply(.SD, iconv, to="ASCII//TRANSLIT"), .SDcols=colsGeo]
+# dtGeo[ , region:=paste0( str_trunc(country, 2, ellipsis = ""), "-", abbreviate(state, 2), ": ",  city)]
+# dtGeo[ , region:=paste0( country, "-", state,  ": ",  city)]
+
+# saveRDS(dtGeo, "dtGeoAll-0.Rds")  
+# 
+dtGeo[, region:=as.ordered(region)]
+
+
+# # dtGeo[country=="Canada", region:=paste0( abbreviate(state, 3, F), ": ",  city)]
+# dtGeo[ , region:=paste0( country, "-", state)]
+# dtGeo[country=="Canada", region:=paste0(state, ": ",  city)]
+# dtGeo[country=="US", region:=paste0( abbreviate(state, 2), ": ",  city)]
+
+
+
+dtJHU <-readCovidJHU() %T>% print; 
+dtCa <- readCovidUofT() %T>% print 
+dtUS <- readCovidUS() %T>% print
+
+
+dateMaxCa <- dtUS$date %>% max  (na.rm=T)%>% ymd; dateMaxCa
+dateMaxJHU <- dtJHU$date %>% max (na.rm=T)%>% ymd; dateMaxJHU
+dateMaxUS<- dtUS$date %>% max (na.rm=T) %>% ymd; dateMaxUS
+
+dtAll <-   dtJHU %>% rbind ( dtCa ) %>% rbind (dtUS)
+
+dtAll [, (colsCases):= lapply(.SD, tidyr::replace_na, 0), .SDcol = colsCases]
+dtAll[, (colsGeo):=lapply(.SD, iconv, to="ASCII//TRANSLIT"), .SDcols=colsGeo]
+
+
+dateMax <- min(dateMaxCa, dateMaxUS, dateMaxJHU); dateMax
+dateToday <- format(Sys.time(), '%d %B, %Y') %>% dmy
+
+# rm(dtJHU); rm(dtCa); rm(dtUS)
+
+
+
+```
+
+
+<!-- ```{r covid.0.selection.Rmd, child = 'covid.0.selection.Rmd '} -->
+<!-- ``` -->
+
+
+# Search options: {.sidebar}
+
+
+
+<!-- #### Define search criteria: -->
+
+```{r searchMenu}
+
+
+radioButtons("sortby", 
+             # h4("Sort results by:"),
+             # h4("Search and sort by:"),
+             h4("Search / Sort by:"),
+             choices=c(
+               "Name" = "region",
+               "Latitude* " = "lat",
+               "Longitude* " = "lng",
+               
+               "Total infected" = "confirmedTotal",
+               # ".. per Million*" = "confirmedTotalPerMil",
+               # "Density* of cases (Total/Mil)" = "confirmedTotalPerMil",
+               "Total deaths" = "deathsTotal",
+               # ".. per Million*" = "deathsTotalPerMil",
+
+            
+               # "Infection spread speed" = "confirmedSpeed",
+               # "Infection spread growth" = "confirmedGrowth.",
+               "Infected per day" = "confirmedSpeed",
+               # ".. change since yesterday" = "confirmedAccel.",
+               "Infected per day growth" = "confirmedGrowth.",
+               # ".. change since yesterday" = "confirmedGrowth.Accel.",
+               
+               # "(Deaths per Million*)" = "deathsTotalPerMil",
+               # "Deaths per Day increase" = "deathsAccel.",
+               # "Deaths per Day growth" = "deathsGrowth.",
+               "Deaths per day" = "deathsSpeed",
+               # ".. change since yesterday" = "deathsAccel.",
+               "Deaths per day growth" = "deathsGrowth.",
+               # ".. change since yesterday" = "deathsGrowth.Accel",
+               "Mortality rate" = "deathRate"
+               
+             ),
+             selected = "confirmedSpeed",
+             inline=F)
+# h6("* where population information is available")
+# h6("* where information is provided")
+h6("* where information is available")
+
+# 
+# 
+# radioButtons("order.regions", h5("Rearrange menus by:"),
+#              choices=c(
+#              #  "Latitude " = "lat",
+#                "Longitude " = "lng",
+#                "Name" = "region",
+#              #  "Population*" = "population",
+#                "Number of cases" = "confirmedTotal"
+#              #  "Mortality rate" = "deathRate"
+#              ),
+#              selected = "lng",
+#              inline=T)
+# 
+
+
+
+
+renderUI({
+  selectInput('country',
+              # h5(paste0 ("Country (out of ", dtAll$country %>% unique %>% length, "):") ),
+              h5(paste0 ("Add Country (Press DEL to delete):")),
+              multiple=T,
+               selected = c("Canada"),
+               # selected = c("Canada", "US"),
+              # selected = STR_ALL,
+              choices = c(STR_ALL, dtGeo[state==STR_TOTAL][order(ifelse(input$ascending, 1, -1)*get(input$sortby))]$country %>% unique)
+              # choices = c( dtGeo[order(get(input$order.regions))]$country %>% unique)
+  )
+  
+})
+
+
+renderUI({
+  selectInput('state',
+              # paste0 ("Select Provinces (out of ", r.dt0()$state %>% unique %>% length - 1, "):"),
+              h5(paste0 ("Add State / Province:")),
+              multiple=T, 
+              # selected = c("Ontario", "Quebec"),
+              selected = STR_ALL,
+              # selected = c("Ontario", "Quebec", "New York"),
+              choices = c(STR_ALL, r.dt0()[order(ifelse(input$ascending, 1, -1)*get(input$sortby))]$state %>% unique  )
+  )
+})
+
+renderUI({
+  selectInput(
+    'city',
+    h5(paste0 ("Add City / Health Region:") ),
+    
+    # h5(paste0 ("Add City /Health Regions (out of ", r.dt00()$city %>% unique %>% length - 1, "):") ),
+    multiple=T,
+    #selected= c("Toronto","Montreal", "New York"),
+    selected = STR_ALL,
+    choices = c(STR_ALL,  r.dt00()[order(ifelse(input$ascending, 1, -1)*get(input$sortby))]$city %>% unique  )
+  )
+})
+
+
+checkboxInput("provincial", h5("Include national aggregates"), F)
+
+checkboxInput("ascending", h5("Change sorting order"), F)
+
+
+
+sliderInput("showN",
+            # h4("Choose number of results: "),
+            # h4("Narrow output to:"),
+            # h4("Define Output:"),
+            # h4("Limit number of results to:"),
+                        h4("Change number of results:"),
+            # "Find top:",
+            min = 1, max = 50, #dtGeo$country%>% unique %>% length/2,
+            pre  = "top ",
+            post  = " regions",
+            # post  = " results",
+            value = 20)
+
+dateInput("dateToday",
+          label = h4("Change date:"), weekstart=1,
+          min = dateMax %>% ymd() - 30, #"2020-03-01",
+          max = dateToday,
+          value = dateMax
+)
+
+
+
+```
+
+
+```{r r.dt000 r.dt r.dtToday, include=F }
+
+
+r.dt0  <- reactive({
+  # #dtGeo
+  # dtGeo[ country %in% input$country]
+  if (STR_ALL == input$country & length(input$country) == 1 )
+    dtGeo
+  else
+    dtGeo[ country %in% input$country ]
+})
+
+r.dt00  <- reactive({
+  # r.dt0()[ state %in% input$state ]
+  if (STR_ALL == input$state & length(input$state) == 1 )
+    r.dt0()
+  else
+    r.dt0()[ state %in% input$state ]
+  
+})
+
+r.dt000  <- reactive({
+  # if (STR_ALL %in% input$city )
+  if (STR_ALL == input$city & length(input$city) == 1 )
+    dtGeo <- r.dt00()
+  else
+    dtGeo <- r.dt00()[ city %in% input$city ]
+  # dtGeo <- r.dt00()[ region %in% input$city ]
+  
+  
+  
+  if (!input$provincial)
+    # dtGeo <- dtGeo[city!=STR_TOTAL | state !=STR_TOTAL ]
+    dtGeo <- dtGeo[city!=STR_TOTAL ]
+  
+  dtGeo <- dtGeo[ , c(colsGeo, "lat", "lng", "population", "region"), with=F]
+  dtGeo
+})
+
+# dtAll [ dtGeo000 ]  ----
+
+
+
+r.dt  <- reactive({
+  
+  # if (input$country == 'Canada')
+  #   dt <- dtCa[ r.dt000(), on =colsGeo]
+  # else if (input$country == 'US')
+  #   dt <- dtUS[ r.dt000(), on =colsGeo]
+  # else 
+  #   dt <- dtJHU[ r.dt000(), on =colsGeo]
+  
+  
+  # dtGeo000 <- dtGeo[ country %in% input$country &  state %in% input$state &  city %in% input$city ]
+  # dtGeo000 <- dtGeo[ country %in% input$country &  state %in% input$state ] # input$state <- 'Quebec'
+  # dtGeo000 <- dtGeo[ country %in% input$country  ] # input$dateToday <- "2020-05-12"
+  
+  dtGeo000 <- r.dt000()  
+  dtGeo000 <-    dtGeo000[, c (colsGeo, "lat", "lng", "population", "region"), with=F]
+  dtGeo000
+  
+  # dtAll [date==input$dateToday] [state == input$state ]
+  # dt <- dtAll [date==input$dateToday] [dtGeo000, on =c (colsGeo)];dt
+  # No  dt <- dtGeo000 [ dtAll [date==input$dateToday], on =c (colsGeo)];dt
+  
+  dt <- dtAll [dtGeo000, on =c (colsGeo)];dt
+  
+  dt <- addDerivatives(dt, colsCases, colsGeo, input$convolution)
+  dt
+
+  
+  # Today -----[ [date == input$dateToday] 
+  
+  dtN <- dt[date==input$dateToday] [order(-get(input$sortby))] [1:input$showN]; dtN
+  dtN <- dtN[!is.na(region)]
+    
+  aRegions <- dtN$region
+  dt <- dt[region %in% aRegions]
+  
+  dt [ , deathRate:= as.integer(deathsTotal / confirmedTotal * 100 )]
+  dt [ , recoveryRate:= as.integer(recoveredTotal / confirmedTotal * 100 )]
+  dt [ , activeTotal := confirmedTotal - recoveredTotal - deathsTotal]
+  
+  cols <- c("confirmed", "deaths",  "confirmedTotal" ,  "deathsTotal"  ,  "confirmedSpeed"  , "deathsSpeed"   )
+  colsPerMil <- paste0(cols, "PerMil")
+  
+  dt[ , (colsPerMil):= lapply(.SD, 
+                              function(x) {
+                                as.integer(x/population*1000000)
+                              }),
+      .SDcols=cols]
+
+  dt
+})
+
+
+r.dtToday  <- reactive({
+  
+  dtToday <-  r.dt()[date == input$dateToday]
+  
+  # dateMax <- dt$date %>% max (na.rm=T)
+  
+  # col <- c("date" ,"state" , "city" ,     
+  #          "deathRate"  ,
+  #          "confirmedTotal"   , "deathsTotal",       "recoveredTotal", 
+  #          "confirmed" ,"deaths"    , "recovered", 
+  #          "confirmedSpeed"  ,     "deathsSpeed"    ,    
+  #          "confirmedAccel."  ,    "deathsAccel."  ,    
+  #          "confirmedGrowth."   ,  "deathsGrowth."   ,     
+  #          "confirmedTotalPerMil" ,"deathsTotalPerMil"   , 
+  #          "confirmedSpeedPerMil", "deathsSpeedPerMil", "region")
+  # 
+  # dtToday <- dt[date==dateMax, col, with=F]
+
+    # dtToday <-  dtToday[ , region:=reorder(region, get(input$sortby))] [1:input$showN]
+  # 
+  # # dtToday <- dtToday[ , region:=reorder(region, ifelse(input$ascending, 1, -1)*get(input$sortby))] [1:input$showN]
+  # 
+  # dt <- dtAll [ dtToday[ , c(colsGeo, "lat", "lng", "population", "region"), with=F], on =colsGeo]
+  
+
+  
+    
+  
+  # dtToday  [     , .(region, date,
+  #       deathsTotal, deathsSpeed, deathRate,
+  #       confirmedTotal, confirmedSpeed, confirmedAccel., confirmedGrowth.,
+  #       recoveredTotal, activeTotal
+  #       # ,
+  #       # confirmedAccel, confirmedGrowth
+  #   )]
+})
+
+
+
+```
+
+
+<!-- # Detect high-risk regions -->
+<!-- # Analyze current situation -->
+<!-- # Predict dynamics -->
+<!-- # Analyze dynamics -->
+<!-- # Generate Report -->
+
+#  Dynamics Today
+<!-- # Daily summary -->
+<!-- # Daily summary-->
+
+
+<!-- # Condu -->
+<!-- # Summary -->
+
+
+##### Data for US and International are loaded from [JHU Database](https://coronavirus.jhu.edu/map.html) (last updated on `r dtJHU$date %>% max`). Data for Canada are loaded from [UofT Database](https://art-bd.shinyapps.io/covid19canada/) (last updated on `r dtCa$date %>% max ` ). To reload data, press [here](https://itrack.shinyapps.io/covid/).
+
+
+## .... Upper Row {.tabset .tabset-fade }
+
+
+### Printable graph
+<!-- ###  Search results -->
+
+```{r}
+
+# <!-- # Situation on `r paste0(wday(ymd(dateMax), label = TRUE, abbr = FALSE), "," format(dateMax, '%d %B, %Y')`)` -->
+r.gToday <-  reactive({
+  
+  
+  # dt <- r.dtToday()
+  
+  dt00 <- r.dt()
+  
+  dt <- dt00[date==input$dateToday]
+  dt <-  dt[ , region:=reorder(region, get(input$sortby))] [ order(-region)][1:input$showN]
+
+  
+  # cols <- c("confirmed", "recovered", "deaths")
+  # cols3 <- paste0(cols, input$fRadio)
+  # cols3[1])  
+  
+  # dateMax <- dt$date %>% max (na.rm = T)
+  
+  g <- dt %>% 
+    ggplot(
+      # aes(x=region)
+      aes(x=reorder(region, get(input$sortby)) )
+    )  + 
+    theme_bw() +
+    # facet_grid(reorder(region, region)~.) +
+    
+    coord_flip() + # facet_grid( . ~ date) +
+    # scale_colour_brewer(palette = "Greens", direction = 1) +   #scale_fill_grey(0.3, 0.9) +
+    
+    geom_col(aes(y=confirmedSpeed ), alpha=0.2, fill="orange") +
+    geom_point(aes(y=confirmedSpeed, size=confirmedTotal ), alpha=0.9, col="orange") +
+    geom_point(aes(y=confirmedSpeed-confirmedAccel., size=confirmedTotal-confirmedSpeed ), alpha=0.4, col="orange") + 
+        geom_point(aes(y=confirmedSpeed-confirmedAccel., size=confirmedTotal-confirmedSpeed ), alpha=0.4, col="orange") + 
+    
+    # geom_point(aes_string(y="recovered", size=as.character("date")), alpha=0.8, col="green", fill= "green") +
+    # 
+    geom_col(aes(y=deathsSpeed), alpha=0.2, fill="red") +
+    geom_point(aes(y=deathsSpeed, size=deathsTotal ), alpha=0.9, col="red") +
+    geom_point(aes(y=deathsSpeed-deathsAccel., size=deathsTotal-deathsSpeed), alpha=0.4, col="red") +
+    
+    
+    geom_segment( aes( xend=reorder(region, get(input$sortby)),
+                       yend=confirmedSpeed, y=confirmedSpeed-confirmedAccel.
+    ), 
+    size = 1, col="black",
+    arrow = arrow(length = unit(0.1, "cm"))
+    ) +
+    
+    guides(fill="none", col="none") +
+    # scale_y_log10() +
+    
+    theme(legend.position = "bottom") +
+    labs(
+      # title= paste0("Number of infected and deaths per day: today vs. yesterday)"),
+      # title= paste0("Speed and acceleration of pandemic on ", format(Sys.time(), "%d %B, %Y") ),
+      title= paste0("Pandemic dynamics on ", input$dateToday), # dateMax),
+      subtitle= paste0("Top ", input$showN, " regions (sorted by '", input$sortby, "'). ",
+                       "Countries: ", my.paste(input$country, ", ") , ". States/Provinces: ", my.paste(input$state, ", ") ),
+      # subtitle=paste0(my.paste(input$country, ", ") , " - ", my.paste(input$state, ", ") 
+      #                 ), 
+      #                 # ". Top: ",
+      #                 # min( input$showN,  dt$regions %>% unique %>% length), " regions"),
+      
+      size="Total number of cases",
+      y="Number of infected (orange) and deaths (red) per day. Change since yesterday is marked by arrow.",
+      y=NULL,
+      x=NULL,
+      
+      caption=paste0("Generated on ",  format(Sys.time(), "%d %B, %Y") ," by iTrack Covid (https://itrack.shinyapps.io/covid)")
+    )
+  
+  g
+})
+
+
+renderPlot( {
+  print( r.gToday() )
+})
+```
+
+
+
+###  Interactive graph
+<!-- ###Explore search results -->
+
+```{r}
+
+renderPlotly( {
+  ggplotly(r.gToday())
+})
+
+
+```
+
+
+
+<!-- ### Printable table -->
+
+<!-- ```{r} -->
+
+<!-- renderTable({ -->
+<!--   # col <- c("date" ,"state" , "city" ,      -->
+<!--   #          "deathRate"  , -->
+<!--   #          "confirmedTotal"   , "deathsTotal",       "recoveredTotal",  -->
+<!--   #          "confirmed" ,"deaths"    , "recovered",  -->
+<!--   #          "confirmedSpeed"  ,     "deathsSpeed"    ,     -->
+<!--   #          "confirmedAccel."  ,    "deathsAccel."  ,     -->
+<!--   #          "confirmedGrowth."   ,  "deathsGrowth."   ,      -->
+<!--   #          "confirmedTotalPerMil" ,"deathsTotalPerMil"   ,  -->
+<!--   #          "confirmedSpeedPerMil", "deathsSpeedPerMil") -->
+<!--   # r.dt()[ date == dateMax | date == dateMax-1 | date == dateMax-7, col, with=F]   -->
+<!--   # r.dt()[ date == dateMax | date == dateMax-1 | date == dateMax-7, -(8:11,)]   -->
+<!--   # r.dtToday() -->
+<!--   r.dt()[ date == dateMax, -(8:11)]  -->
+<!-- }) -->
+<!-- ``` -->
+
+
+<!-- ### Interactive table -->
+
+### Table
+
+```{r}
+DT::renderDataTable({
+  # r.dtToday()[ date == dateMax | date == dateMax-1 | date == dateMax-7, -(8:11)]   %>% 
+    r.dt()[ date == dateMax, -(8:11)]   %>%
+    # r.dtToday() %>% 
+    DT::datatable( 
+      filter ="top",
+      options = list(
+        scrollY = TRUE,
+        scrollX = TRUE,
+        bPaginate = T,
+        pageLength = 8)
+    )
+})
+```
+
+
+
+
+
+
+<!-- ### Printable table (alternative format) -->
+
+<!-- ```{r} -->
+
+<!-- renderPrint({ -->
+<!--    r.dt()[ date == dateMax | date == dateMax-1 | date == dateMax-7]  %>%  -->
+<!--     knitr::kable() -->
+<!-- }) -->
+<!-- ``` -->
+
+
+
+
+
+# Trends for Tomorrow
+<!-- # Detailed analysis -->
+<!-- # Full dynamics analysis -->
+
+
+## .... Upper Row {data-height=170}
+<!-- data-orientation=rows } -->
+
+
+<!-- ### Plot attributes {data-width=100} -->
+<!-- ### Model attributes {data-width=100} -->
+<!-- ### Dynamics attributes {data-width=100} -->
+### Infected cases metrics {data-width=110}
+
+```{r}
+
+
+radioButtons("fRadio", "Compute: ", # LPlot: Metric Functional:", # "f", "Functionals:", Show Compute
+             c(
+               "Raw data (records/day)" = "",
+               "Total" = "Total",
+               "Per day Speed" = "Speed",
+               "Per day Acceleration" = "Accel.",
+               "Per day Growth" = "Growth.",
+               "Per day Growth Change" = "Growth.Accel"
+             ), inline=F,
+             selected = "Speed"
+)
+
+
+hr()
+
+
+checkboxInput("scale", "Fix scale constant", F)
+
+
+
+# checkboxInput("flag.risk", "Flag high-risk regions", T)
+
+checkboxInput("normalize", "Normalize* (per Million)", F)
+# 
+# h6("* where population data available")
+h6("(* where population size is known)")
+
+
+
+# 
+# # checkboxInput("recovered", "Include recovered statistics", F)
+# # checkboxInput("deaths", "Include death statistics", F)
+# checkboxInput("recovered", "Show recovery rate", F)
+# checkboxInput("deaths", "Show death rate", F)
+
+# h4("Step 3: Model and Forecast ")
+#
+checkboxInput("trend", "Overlay model", T)
+# checkboxInput("predict", "Show predictions (COMING SOON)", F)
+
+
+# sliderInput("convolution", "Adjust model precision:", #"Convolution filter size", # "Compute over:", #Averaging  window size, #Precision
+sliderInput("convolution", "Adjust filter:", #"Convolution filter
+            min = 3, max = 13, post  = " days",
+            value = 7)
+
+
+
+dateInput("date",
+          label = "Adjust start date:", weekstart=1,
+          min = dateMax %>% ymd() - 30, #"2020-03-01",
+          max = dateMax,
+          value = dateMax - 30 
+)
+
+
+
+
+```
+
+
+<!-- ### Pandemic spread models -->
+
+### Pandemic dynamics models
+<!-- ### Pandemic dynamics -->
+
+```{r}
+
+r.gConfirmed <-  reactive({
+
+  dt00 <<- r.dt()
+
+  dt00 <- addDerivatives(dt00, colsCases, colsGeo, input$convolution)
+  
+  if (input$normalize == T & dt00$population %>% min(na.rm = T) > 1111)
+    dt00[ , (cols3):= lapply(.SD, function(x) {as.integer(x/population*1000000)}),.SDcols=cols3]
+  
+  dt00 <- dt00[date >= input$date]
+  
+  #     dt00 <<- r.dt()
+  # dt <- dt00[date==input$dateToday]
+  # dt <-  dt[ , region:=reorder(region, get(input$sortby))] [ order(-region)][1:input$showN]
+  
+  cols <- c("confirmed", "recovered", "deaths")
+  cols3 <- paste0(cols, input$fRadio)
+  
+  if (  dt00$region %>% unique %>% length > 0) {
+    g <<- ggplot( dt00  ) + 
+      
+      #facet_grid(reorder(state, Long)~.) +
+      #
+      facet_wrap(.~
+                   #   region,  
+                   # reorder(region, get(input$sortby)),
+                   reorder(region, ifelse(input$ascending, 1, -1)*get(input$sortby)),
+                 scales=ifelse(input$scale, "fixed", "free_y")   
+      ) +
+      scale_y_continuous(limits = c(0, NA)) +
+      geom_vline(xintercept=dateMax, col = "orange", size=2) +
+      geom_vline(xintercept=dateMax-14, col = "orange", size=1) +
+      geom_point(aes_string("date", cols3[1]), alpha=0.5, col="purple", size=2) +
+      geom_line(aes_string("date", cols3[1]), alpha=0.5, col="purple", size=1) +
+      
+      
+      
+      theme_bw() +
+      scale_x_date(date_breaks = "1 week",
+                   date_minor_breaks = "1 day", date_labels = "%b %d") +
+      labs(
+        #title=paste0("Pandemic situation in ", input$state), # ":   Historical vs. Predicted"),
+        title= paste0("Number of infected cases ", input$fRadio, " over time"),
+        #  title=paste0("", input$country), # ": Historical vs. Predicted"),
+        
+        # subtitle= "The number of Confirmed, Recovered, Death cases",
+        subtitle=paste0("", my.paste(input$state, ", "), ". Last updated: ", dateMax ), # ": Historical vs. Predicted"),
+        #subtitle=paste0("Dates: ", dtJHU$date %>% min, " - ", dtJHU$date %>% max),
+        
+        caption=paste0("Generated on ",  format(Sys.time(), "%d %B, %Y") ," by iTrack Covid (https://itrack.shinyapps.io/covid)"),
+        
+        # y=paste("Cases", input$fRadio, ifelse(input$normalize, " (per Million)","")),
+        y=paste("Cases"),
+        x=NULL
+      )
+    
+    
+    if (input$trend ) {
+      
+      # if (input$trend_SE ) {
+      g <- g + geom_smooth(aes_string("date", cols3[1]), size = 1, level=0.99,
+                           method= "gam", # method= "gam",  formula = y ~ s(x,k=3),
+                           # method = "lm", formula = y ~ poly(x, 4),
+                           col = "black", linetype = 3, alpha=0.3)
+      # } else
+      #   {
+      #   g <- g + geom_smooth(aes_string("date", cols3[1]), size = 1, se = FALSE,
+      #                        method= "gam",   # method= "gam",  formula = y ~ s(x,k=3),
+      #                        # method = "lm", formula = y ~ poly(x, 4),
+      #                        col = "black", linetype = 3, alpha=0.5)
+      # }
+      
+    }
+  } else {
+    
+    g <<- ggplot () +  theme_bw() +
+      
+      # annotate("text", x = 1, y = 2,  label = paste("Thank you for using iTrack Covid App.")    ) +
+      # annotate("text", x = 1, y = 4,  label = "Please wait until the App loads the data...") + 
+      # annotate("text", x = 1, y = 4,  label = "While data is being loaded from  University of Toronto database ...") + 
+      
+      annotate("text", x = 1, y = 3, label=paste0(
+        "While data is being loaded ... \n\n", 
+        "Tip of the Day: \n Bookmark this page on your phone to have live pandemic update in your pocket.\n\n"
+        # ,
+        # "Quote of the day: \n 'Happiness is not something ready made. It comes from your own actions' (Dalai Lama)"
+      ) ) +
+      annotate("text", x = 1, y = 1, label="") + 
+      annotate("text", x = 1, y = 4, label="") + 
+      labs(x=NULL, y=NULL)
+    
+  }
+})
+
+renderPlot( {
+  print( r.gConfirmed() )
+})
+```
+
+
+<!-- ###  Dynamics (clickable) -->
+
+<!-- ```{r} -->
+
+<!-- renderPlotly( { -->
+<!--   ggplotly(r.gConfirmed()) -->
+<!-- }) -->
+
+
+<!-- ``` -->
+
+
+
+<!-- # Tables -->
+
+<!-- ## .... Upper Row {.tabset .tabset-fade } -->
+
+
+<!-- ### r.dt  -->
+
+
+<!-- ```{r} -->
+<!-- DT::renderDataTable({ -->
+<!--   DT::datatable( r.dt(), -->
+<!--                  filter ="top", -->
+<!--                  options = list( -->
+<!--                    scrollY = TRUE, -->
+<!--                    scrollX = TRUE, -->
+<!--                    bPaginate = T, -->
+<!--                    pageLength = 8) -->
+<!--   ) -->
+<!-- }) -->
+<!-- ``` -->
+
+
+
+<!-- ### dt00 -->
+
+
+<!-- ```{r} -->
+<!-- DT::renderDataTable({ -->
+<!--   DT::datatable( r.dt00(),  filter ="top") -->
+
+<!-- }) -->
+
+<!-- ``` -->
+
+
+
+<!-- ### dt000 -->
+
+
+<!-- ```{r} -->
+<!-- DT::renderDataTable({ -->
+<!--   DT::datatable( r.dt000() ) -->
+<!-- }) -->
+<!-- ``` -->
+
+
+
+<!-- ### dtAll  -->
+
+<!-- ```{r} -->
+<!-- DT::renderDataTable({ -->
+<!--   DT::datatable( dtAll ,  filter ="top") -->
+<!-- }) -->
+<!-- ``` -->
+
+
+
+
+<!-- ### dt  -->
+
+
+<!-- ```{r} -->
+<!-- DT::renderDataTable({ -->
+<!--   DT::datatable( r.dt() ) -->
+<!-- }) -->
+<!-- ``` -->
+
+<!-- ### dt000 (renderTable) -->
+
+<!-- ```{r} -->
+<!-- renderTable({ -->
+<!--   r.dt000()  -->
+<!-- }) -->
+<!-- ``` -->
+
+
+
+
+<!-- ### dt000 (xtable) -->
+
+<!-- ```{r results='asis'} -->
+<!-- renderPrint({ -->
+<!--   r.dt000() %>% xtable::xtable (type="html") %>% print -->
+<!-- }) -->
+<!-- ``` -->
+
+
+
+
+<!-- ### dt000 (stargazer) -->
+
+<!-- ```{r results='asis' } -->
+<!-- renderPrint({ -->
+<!--   r.dt000() %>% stargazer::stargazer(ype = "html") -->
+<!-- }) -->
+<!-- ``` -->
+
+
+
+<!-- ### dt000 (kable as is print) -->
+
+<!-- ```{r results='asis'} -->
+<!-- renderPrint({ -->
+<!--   r.dt000() %>% knitr::kable()%>% print -->
+<!-- }) -->
+<!-- ``` -->
+
+
+
+<!-- ### dt000 (kable print) -->
+
+<!-- ```{r } -->
+<!-- renderPrint({ -->
+<!--   r.dt000() %>% knitr::kable() %>% print -->
+<!-- }) -->
+<!-- ``` -->
+
+
+
+```{r covid.9.help.Rmd, child = 'covid.9.help.Rmd'}
+```
+

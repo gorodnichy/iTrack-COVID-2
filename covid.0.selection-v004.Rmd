@@ -1,0 +1,205 @@
+<!-- # covid.0.selection.Rmd -->
+
+
+# Make selection: {.sidebar}
+
+
+##### Data is loaded  from [JHU Database](https://coronavirus.jhu.edu/map.html). This databased  was last updated on  `r dtJHU$date %>% max %>% format("%d %B, %Y")`. To reload data, press [here](https://itrack.shinyapps.io/covid/).
+
+<!-- ##### The [JHU Database](https://coronavirus.jhu.edu/map.html) was last updated on  `r dtJHU$date %>% max %>% format("%d %B, %Y")`.  -->
+<!-- ##### To reload data from this databasse, press [here](https://itrack.shinyapps.io/covid/). -->
+
+
+<!-- #### Make Selection: -->
+<!-- ####  Date:`r format(Sys.time(), "%d %B, %Y")`. -->
+
+```{r }
+
+# dateInput("date",
+#           label = h5("Select Date:"), weekstart=1,
+#           min = "2019-09-01",
+#           max= format(Sys.time(), "%Y-%m-%d"), 
+#           value = format(Sys.time(), "%Y-%m-%d") # "%d %B, %Y")`
+# )
+# 
+
+cols <- c("country", "state") 
+dt00 <- dtGeo[  dtJHU %>% unique (by=cols), on = cols]
+
+selectInput('country',
+            h5("Country (sorted by location):"),
+            multiple=F,
+            selected = "Canada",
+            # choices = dtCountries [Lat >= input$lat [1] & Lat <= input$lat  [2] & Long >= input$long [1] & Long <= input$long [2] ]
+            #choices = c(dtJHU$country %>% unique  ) 
+            choices = c(dt00[order(lng)]$country %>% unique  ) 
+            #     choices = c(dtGeo$country %>% unique %>% sort  ) 
+            # choices = c("(", dt$Country.Region %>% unique %>% sort() )
+)
+
+
+
+# renderUI({
+#   selectInput('state',
+#               h5("Province/State:"),
+#               # multiple=T,
+#               choices = c(dtGeo[country %in% input$country][order(lng)]$state %>% unique %>% sort() )
+#   )
+# })
+
+renderUI({
+  nStates <- dtJHU[country %in% input$country]$state %>% unique %>% length
+  selectInput('state',
+              h5(paste0 ("Province/State (out of", nStates, "):") ),
+              # multiple=T,
+              choices = c(dtJHU[country %in% input$country]$state %>% unique %>% sort() )
+  )
+})
+
+
+# 
+# renderUI({
+#   selectInput('city',
+#               h5("City/County:"),
+#               # multiple=T,
+#               choices = c(dtJHU[country %in% input$country]$state %>% unique %>% sort() )
+#   )
+# })
+# 
+
+# 
+# hr()
+# 
+
+# 
+# 
+# checkboxGroupInput("m", h5("Metrics:"), # Show
+#                    c("Confirmed cases  (C)" = "C",
+#                      "Recovered cases  (R)" = "R",
+#                      "Death cases      (D)" = "D",
+#                      "Unresolved cases (U)" = "U"
+#                    #  "Death rate     (D/C)" = "D/C",
+#                   #   "Recovery rate  (R/C)" = "R/C"
+#                    ))
+# 
+# 
+# checkboxGroupInput("f", "Show: ", # Metric Functional:", # "f", "Functionals:", Show Compute
+#                    c(
+#                      "Raw data (cases/day)" = "",
+#                      "Totals" = "Totals",
+#                      "Speed" = "Speed",
+#                      "Acceleration  " = "Accel."
+#                    ),
+#                    select = c("Totals", "Speed", "Accel.")
+# )
+
+
+checkboxInput("normalize", "Normalize (per Million)", T)
+
+radioButtons("fRadio", "Show: ", # Metric Functional:", # "f", "Functionals:", Show Compute
+                   c(
+                     "Raw data (records/day)" = "",
+                     "Totals: N" = "Total",
+                     "Speed: N'=dN/dT" = "Speed",
+                     "Acceleration: N''=dN'/dT" = "Accel."
+                     # "Growth: N/N'" = "Growth0",
+                     #  "Growth factor: N'(T)/N'(T-1)" = "Growth"
+                   ),
+                   selected = "Speed"
+)
+
+
+# sliderInput("convolution", "Convolution filter size", # "Compute over:", #Averaging  window size
+#             min = 1, max = 15, post  = " days",
+#             value = 7)
+
+hr()
+
+# h5("Modeling parameters: ")
+
+checkboxInput("trend", "Add model:  N=f(T)", T)
+# checkboxInput("trend_SE", "Show 95% confidence interval", T)
+
+# sliderInput("trend", "Trendline:", # N= poly (T, k) )
+#             min = 0, max = 5, post  = " order",
+#             value = 7)
+
+
+
+
+# checkboxGroupInput("b", "Compare to:",
+#                    c(
+#                      "Day before    (t-1)" = "-1",
+#                      "Week before   (t-7)" = "-7",
+#                      "Month before (t-30)" = '-30'
+#                    ),
+#                    selected=c("-1", "-7", "-30")
+# )
+# 
+# checkboxGroupInput("b", "Compare to:",
+#                    c(
+#                      "Day before    " = "-1",
+#                      "Week before  " = "-7",
+#                      "Month before " = '-30'
+#                    ),
+#                    selected=c("-1", "-7", "-30")
+# )
+
+
+# 
+# cat (" --- COMING SOON --- ") 
+# 
+# 
+# 
+# checkboxGroupInput("a", "Predict for:",
+#                    c(
+#                      "Day ahead (t+1)" = "+1",
+#                      "Week ahead (t+7)"= "+7",
+#                      "Month ahead (t+30)" = '+30'
+#                    )
+# )
+# 
+# # 
+# # checkboxgroupinput("assumptions", "Assumptions:",
+# #                    c(
+# #                      "Assume no cross-border contamination" = "border",
+# #                      "Assume no cross-city contimination"= "cities"
+# #                    ),
+# #                    selected=c("border", "cities")
+# # )
+# 
+# h5("Prediction model assumptions:")
+# 
+# sliderInput("border", "Cross-border contamination:",
+#             min = 0, max = 100, post  = " %",
+#             value = 0)
+# sliderInput("city", "Cross-city contamination:",
+#             min = 0, max = 100, post  = " %",
+#             value = 0)
+# sliderInput("city", "Reinfectation rate:",
+#             min = 0, max = 100, post  = " %",
+#             value = 0)
+# sliderInput("city", "Self-isolation rate:",
+#             min = 0, max = 100, post  = " %",
+#             value = 80)
+# 
+# # 
+# # checkboxGroupInput("assumptions", "Assumption:",
+# #                    c(
+# #                      "Border closed (assume no cross-border contaamination)" = "border",
+# #                      "Cities closed (ignore geo-proximity)"= "cities", # ()
+# #                      "Month ahead (t+30)" = '+30'
+# #                    ),
+# #                    selected=c("+7")
+# # )
+# 
+# 
+
+```
+
+
+
+
+<!-- <center> -->
+<!-- ![](front_image4.png) -->
+<!-- </center> -->

@@ -1,0 +1,1342 @@
+---
+title: "iTrack Covid"
+# author: Dmitry Gorodnichy
+output: 
+  flexdashboard::flex_dashboard:
+    # theme: simplex # journal # theme: simplex
+    orientation: rows
+    social: menu
+    # source_code: embed
+    vertical_layout: fill #scroll #fill
+runtime: shiny       
+---
+
+```{r setup, include=FALSE}
+#------------------ Global and Packages ------------------
+
+
+# https://walkerke.shinyapps.io/neighborhood_diversity/
+# setwd("/home/dmitry/GitHub/iTrack-covid-priv")
+# source("covid-read.R")
+
+# source("covid-read.R")
+# Author: Dmitry Gorodnichy (dmitry@gorodnichy.ca)
+
+# setwd("/home/dmitry/GitHub/iTrack-covid-priv")
+source("dt.R")  
+
+
+# ****************************************************** -------
+
+readGeoCa <- function() {
+  
+  dtCaCitiesInUofT <- fread("data/dtCitiesCa-fromUofT.csv", fill=T, header=T)   %>% # extracted in readUT()
+    setnames("health_region", "admin2") %>%
+    setnames( "province", "state") %>%
+    dt.replaceAB("state", "BC", "British Columbia"  ) %>% 
+    dt.replaceAB("state",  "NWT", "Northwest Territories" ) %>% 
+    dt.replaceAB("state",  "NL", "Newfoundland and Labrador" ) %>% 
+    dt.replaceAB("state", "PEI", "Prince Edward Island"  )
+  dtCaCitiesInUofT[, admin2:=iconv(admin2,to="ASCII//TRANSLIT")]
+  dtCaCitiesInUofT[, state:=iconv(state,to="ASCII//TRANSLIT")]
+  
+  dtCaCitiesInUofT <- dtCaCitiesInUofT[state!="Repatriated"]
+  dtCaCitiesInUofT
+  dtCaCitiesInUofT$state %>% unique()
+  
+  
+  #   dtCaCitiesGeoPop <- fread("data/citiesCA.csv", stringsAsFactors=T);  # 
+  dtCaCitiesGeoPop <- fread("https://simplemaps.com/static/data/country-cities/ca/ca.csv");  # 
+  cols <- c(       "country"  ,  "iso2"   ,   "capital"     ,  "population_proper")
+  dtCaCitiesGeoPop [ ,(cols):= NULL]
+  dtCaCitiesGeoPop %>% setnames("lng", "lng")
+  dtCaCitiesGeoPop
+  setnames(dtCaCitiesGeoPop, "admin", "state")
+  setnames(dtCaCitiesGeoPop, "city", "admin2")
+  dtCaCitiesGeoPop[, admin2:=iconv(admin2,to="ASCII//TRANSLIT")]
+  dtCaCitiesGeoPop[, state:=iconv(state,to="ASCII//TRANSLIT")]
+  dtCaCitiesGeoPop 
+  dtCaCitiesGeoPop$state %>% unique()
+  
+  
+  dtGeoCa <<- dtCaCitiesGeoPop %>% merge (dtCaCitiesInUofT, by=c("admin2", "state"), all = T) ; dtGeoCa
+  
+  dtGeoCa %>% setkey(state)
+  dtGeoCa$state %>% unique
+  for( st in dtGeoCa$state %>% unique)
+    print(dtGeoCa[state==st][order(lat)])
+  
+  dtGeoCa %>% setkeyv(c("state", "admin2"))
+  
+  dtGeoCa$closest_city <- dtGeoCa$admin2
+  
+  addGeoFromClosestCity <- function(state, city, cities){
+    
+    dtR <- dtGeoCa[ state == state & admin2 %in% cities]
+    popR <- dtR$population %>% sum
+    latR <- dtR$lat %>% mean(na.rm =T) %>% as.integer()
+    lngR <- dtR$lng %>% mean(na.rm =T) %>% as.integer()
+    
+    dtGeoCa[state == state & admin2==city, ":="(
+      population=popR, lat=latR, lng=lngR)]
+  }
+  
+  
+  addGeoFromClosestCity("Alberta", "Central", "Red Deer")
+  addGeoFromClosestCity("Alberta", "North", "Fort McMurray")
+  addGeoFromClosestCity("Alberta", "South", c("Lethbridge", "Medicine Hat"))
+  
+  # addOne2another<- function("admin2", "Not Reported", "Edmonton") {
+  # }
+  # addNotReportedToCapital("Alberta", "nEdmonton")
+  
+}
+
+
+readGeo <- function() {
+  
+  dtGeo <<- fread("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv") %>% 
+    dt.rmcols (c("UID"  , "iso2" ,   "iso3"  ,   "code3", "FIPS", "Combined_Key"))  %>% 
+    setnames(c("admin2", "state", "country", "lat", "lng", "population")) %>% lazy_dt() %>% 
+    filter(state %ni% c ("Diamond Princess", "Grand Princess", "Recovered")) %>% 
+    as.dt 
+  
+  #   dtGeo[state=="", state:="(National)"]
+  
+  #dtGeo[country=="Canada"]
+  # dtGeo[admin2!=""]
+  
+  dtGeo[ state == "", state:="(National)", by=country]
+  dtGeo
+}
+
+# ****************************************************** -------
+
+readCovidUS <- function() {
+  
+  # JHU  used for https://www.arcgis.com/apps/opsdashboard/index.html#/bda7594740fd40299423467b48e9ecf6
+  # from https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series
+  #
+  
+  cols <- c ( "Lat"   ,  "Long"  ) ;
+  # dtJHUc <- fread( "https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv" , stringsAsFactors=T)
+  # dtJHUc [ ,(cols):=NULL] ; dtJHUc <- dtJHUc %>% melt(id=1:2); setnames(dtJHUc, c("state", "country", "date", "confirmed"))
+  # dtJHUd <- fread( "https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv" , stringsAsFactors=T)
+  # dtJHUd [ ,(cols):=NULL] ; dtJHUd <- dtJHUd %>% melt(id=1:2); setnames(dtJHUd, c("state", "country", "date", "deaths"))
+  # dtJHUr <- fread( "https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv" , stringsAsFactors=T)
+  # (dtJHUr [ ,(cols):=NULL] %>%  melt(id=1:2) -> dtJHUr) %>%  setnames(c("state", "country", "date", "recovered"))
+  # 
+  # lapply (list(dtJHUc, dtJHUd, dtJHUr), setkeyv, c("state" ,  "country" ,   "date"))
+  # dtJHU <<- dtJHUc [dtJHUd][dtJHUr]
+  # 
+  # rm(dtJHUc, dtJHUd, dtJHUr);
+  # dtJHU [, date := as.character(date) %>% mdy ]
+  
+  #. US -----
+  #
+  cols <- c ( 1:5, 8:11 ) ;
+  dtUSc <- fread("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv")
+  dtUSc [ ,(cols):=NULL] ; 
+  dtUSc <- dtUSc %>% melt(id=1:2); 
+  setnames(dtUSc, c("admin", "state", "date", "confirmed"))
+  
+  dtUSd <- fread("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_US.csv")
+  dtUSd [ ,(cols):=NULL] ; 
+  dtUSd <- dtUSd %>% melt(id=1:2); 
+  setnames(dtUSd, c("admin", "state", "date", "deaths"))
+  
+  #  dtUSr <- fread("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_US.csv")
+  
+  lapply (list(dtUSc, dtUSd), setkeyv, c("admin" ,  "state" ,   "date"))
+  dtUS <<- dtUSc [dtUSd]
+  
+  rm(dtUSc, dtUSd);
+  dtUS [, date := as.character(date) %>% mdy ]
+  dtUS$date %>% max()
+  dtUS
+  
+  
+}
+
+readCovidJHU <- function(coronavirus_data=NULL) {
+  
+  #used in [GitHub](https://github.com/AntoineSoetewey/coronavirus_dashboard){target="_blank"}.
+  # library(coronavirus)
+  # dtJHUa <- coronavirus %>%  data.table() # the same as below
+  
+  if (is.null(coronavirus_data))
+    dtJHU  <<- fread("https://github.com/RamiKrispin/coronavirus-csv/raw/master/coronavirus_dataset.csv")
+  else if (coronavirus_data == "local_copy")
+    dtJHU  <<- fread("github_RamiKrispin_coronavirus-csv.csv")
+  else
+    dtJHU <<- copy(coronavirus_data)
+  
+  dtJHU  <<- fread("https://github.com/RamiKrispin/coronavirus-csv/raw/master/coronavirus_dataset.csv")
+  
+  dtJHU <<- dtJHU %>% 
+    dt.rmcols(c("Lat", "Long" )) %>%  
+    setnames(c("state", "country", "date", "cases", "type")) %>% 
+    dt.convert("date", ymd) %>% 
+    setkeyv(c("state" ,  "country" ,   "date")) 
+  
+  dtJHU[ state == "", state:="(National)", by=country]
+  
+  dtJHU <<- dcast(dtJHU, date+country+state ~ type, value.var="cases") 
+  
+  # . clean Canada  ----
+  
+  cleanJHU.Canada()
+}
+
+
+
+
+cleanJHU.Canada <- function() {
+  
+  dtJHU[country=="Canada"] # NO PROVINCES are CSSEGISandData/COVID-19. !
+  dtJHU[country == "Canada" & state == "(National)"]
+  dtJHU[state == "Ontario"]
+  dtJHU[state == "Quebec"] 
+  
+  # dtJHU[state %in% c("Recovered", "Diamond Princess", "Grand Princess")][type=="confirmed" & cases>0]
+  # # 1: Grand Princess  Canada 2020-03-13     2 confirmed
+  # # 2: Grand Princess  Canada 2020-03-17     6 confirmed
+  # # 3: Grand Princess  Canada 2020-03-18     1 confirmed
+  # # 4: Grand Princess  Canada 2020-03-20     1 confirmed
+  # # 5: Grand Princess  Canada 2020-03-22     3 confirmed
+  # dtJHU[state %in% c("Recovered", "Diamond Princess", "Grand Princess")][type=="death" & cases>0]
+  # # 1: Diamond Princess  Canada 2020-03-22     1  death
+  # dtJHU[state %in% c("Recovered", "Diamond Princess", "Grand Princess")][type=="recovered" & cases>0]
+  # # Empty data.table 
+  # #   dtJHU[state=="Recovered"]
+  # dtJHU[state=="Recovered", .N, by=country] # Bug there! in Canada only:  Canada   158
+  
+  # fix bug
+  dtJHU <<- dtJHU [state %ni% c("Recovered", "Diamond Princess", "Grand Princess") ]
+  
+  #  dtJHU[country == "Canada"][date > max(date) - 14][state=="(National)"]
+  
+  setkey(dtJHU, date)
+  dtN2 <- dtJHU[country == "Canada" & state != "(National)" ,  
+                lapply(.SD, sum, na.rm = T), by=c("date"),
+                .SDcols= c("confirmed" ,"death" ,"recovered")]
+  
+  dtJHU[country == "Canada" & state == "(National)"]$confirmed <<- dtN2$confirmed
+  dtJHU[country == "Canada" & state == "(National)"]$death <<- dtN2$death
+  
+  dtJHU[country == "Canada" & state == "(National)", confirmed:= dtN2$confirmed ] 
+  dtJHU[country == "Canada" & state == "(National)", death := dtN2$death ]
+  
+  # if (F) {
+  #   dtJHU[cases<0] # another bug ?
+  #   dtJHU[cases<0, cases, by=c("country", "date", "type")]
+  #   dtJHU$cases <<-  dtJHU$cases %>% abs() 
+  #   
+  #   dateNeg <-  dt0[recovered<0]$date
+  #   negative <- dt0[recovered<0]$recovered
+  #   dtJHU.dailytotals[date == dateNeg -1, recovered:=recovered+ negative/2]
+  #   dtJHU.dailytotals[date == dateNeg, recovered:=recovered - negative/2]
+  # }
+  # 
+}
+
+
+
+
+readCovidUofT <- function () {
+  
+  strCovid <- "https://docs.google.com/spreadsheets/d/1D6okqtBS3S2NRC7GFVHzaZ67DuTw7LX49-fqSLwJyeo/"
+  sheets <- c("Cases" ,"Mortality" ,"Recovered", "Testing" ,"Codebook")
+  
+  # i=1
+  # strCovidCsv <- paste0(strCovid, "gviz/tq?tqx=out:csv&sheet=", sheets[i]); strCovidCsv
+  # dt <- fread(strCovidCsv,header=T, stringsAsFactors=T)
+  
+  
+  fOpen <- function(i, col1name) {
+    strCovidCsv <- paste0(strCovid, "gviz/tq?tqx=out:csv&sheet=", sheets[i])
+    dt <- fread(strCovidCsv, header=T, stringsAsFactors=T, select= 1:15)
+    names (dt) <- c(col1name, names (dt) [-1] )
+    return(dt)
+  }
+  
+  fRemoveV <- function(dt) {
+    str <- names(dt)
+    cols <- str [ str_detect(str, regex("^V+")) ]
+    dt [ , (cols):=NULL ]
+    print(str)
+    return(dt)
+  }
+  
+  #1 ---
+  dtCases <<- fOpen(1, "case_id")  %>% fRemoveV() %>%  lazy_dt() %>% select(1:12) %>% as.dt() 
+  dtCases$date_report  <<- dtCases$date_report %>% as.character() %>% dmy()
+  dtCases$travel_yn  <<- dtCases$travel_yn %>% as.factor()
+  dtCases[`locally_acquired`=="Close contact", locally_acquired:="Close Contact"]
+  
+  #2 ---
+  dtMortality  <<- fOpen(2,"death_id") %>% fRemoveV() %>%  lazy_dt() %>% select(c(1:9, 11)) %>% as.dt() 
+  dtMortality$date_death_report  <<- dtMortality$date_death_report %>% as.character() %>% dmy()
+  
+  #
+  #3 ---
+  dtRecovered  <<- fOpen(3,"date_recovered") %>% fRemoveV() %>%  lazy_dt() %>% select(1:4) %>% as.dt() 
+  dtRecovered$date_recovered  <<- dtRecovered$date_recovered %>% as.character() %>% dmy()
+  
+  #4 ---
+  dtTesting  <<- fOpen(4,"date_testing") %>% fRemoveV() %>%  lazy_dt() %>% select(1:4) %>% as.dt() 
+  dtTesting$date_testing  <<- dtTesting$date_testing %>% as.character() %>% dmy()
+  
+  # #5 ---
+  # dtCodeBook  <<- fOpen(5, "variable") %>% lazy_dt() %>% select(1:3) %>% slice(-(1:2)) %>% as.dt() 
+  # setnames(dtCodeBook, c("Variable", "Description", "Label"))
+  
+  
+  dtCases %>% summary(30)
+  dtMortality %>%  summary
+  
+  dtRecovered %>%  summary
+  dtTesting%>%  summary
+  
+  
+  
+  setnames(dtCases, "date_report", "date")
+  setnames(dtMortality, "date_death_report", "date")
+  setnames(dtRecovered, "date_recovered", "date")
+  setnames(dtTesting, "date_testing", "date")
+  
+  
+  setnames(dtCases, "health_region", "city")
+  setnames(dtMortality, "health_region", "city")
+  
+  dtDailyCases2 <- dtCases[ , .(cum_cases=.N), keyby = c("date", "province")]; dtDailyCases2
+  dtDailyMort2 <- dtMortality[ , .(cum_mort=.N), keyby = c("date", "province")]; dtDailyMort2  
+  
+  dtRecovered ; setkeyv(dtRecovered, c("date", "province"))      
+  dtTesting ;  setkeyv(dtTesting, c("date", "province"))  
+  #dtMortality2 <- dtCases[dtMortality[ , .(case_id,date_death_report,additional_info)], on="case_id"]
+  #dtMortality2 %>%  summary 
+  
+  dtUofT.dailytotals <<- dtDailyCases2[dtDailyMort2][dtRecovered][dtTesting]
+  dtUofT.dailytotals [ , province_source:=NULL]
+  dtUofT.dailytotals [ , testing_info:=NULL]
+  
+  
+  dtDailyCases <- dtCases[ , .(cum_cases=.N), keyby = c("date", "province",  "city")]; dtDailyCases
+  dtDailyMort <- dtMortality[ , .(cum_mort=.N), keyby = c("date", "province", "city")]; dtDailyMort   
+  
+  dtUofT.dailytotalsCities <<- dtDailyCases %>% merge(dtDailyMort, on =  c("date", "province", "city"), all=T)
+  
+}
+
+# ****************************************************** -------
+
+addDerivatives <- function (dt0, colCases, groupby) {
+  
+  colTotal <- paste0(colCases, "Total")
+  colDailyAve <- paste0(colCases, "DailyAve")
+  colWeeklyDynamics <- paste0(colCases, "WeeklyDynamics") # change since last week in DailyAve
+  # colSpeedAve <- paste0(colCases, "SpeedAve")
+  # colAccelation <- paste0(colCases, "Acceleration")
+  
+  dt0[ ,  (colTotal) := cumsum(.SD),  by=c(groupby), .SDcols = colCases][]
+  dt0[ ,  (colDailyAve) := frollmean(.SD, 7, align = "right", fill=0),  by=c(groupby), .SDcols = colCases][]
+  dt0[ ,  (colWeeklyDynamics) := .SD - shift(.SD,7),  by=c(groupby), .SDcols = colDailyAve][]
+  
+  
+  cols <- c(5:ncol(dt0) )
+  dt0 [ , (cols) :=lapply(.SD, as.integer), .SDcols = cols]
+  
+}
+
+
+addAllMetrics <- function(dt0) {
+  
+  # . add integrals, averages and derivatives ----
+  
+ # dt0 <<- dtGeo[, .(state, country , population)][dt0 , on=c("country", "state")]
+  
+  # groupby <- "state"
+  groupby <- c("state","country")
+  cols3 <- c("confirmed","death",  "recovered")
+  # cols4 <- c("C", "D", "R")
+  # setnames(dt0, cols3, cols4)
+  
+  addDerivatives(dt0, cols3, groupby)[.N]
+  dt0 %>% names
+     
+
+  
+  # . add per Million  ----
+  
+  colsPer100K <- paste0(cols3, "Per100K")
+  dt0[ , (colsPer100K):= lapply(.SD, function(x) {as.integer(x/population*1000000)}), by=c("country", "state"), .SDcols=cols3][.N]
+  dt0 %>% names
+  
+  cols3total <- paste0(cols3, "Total")
+  colsTotalPer100K <- paste0(cols3total, "Per100K")
+  # dt0 <- dtGeo[, .(state, country ,population)][dt0 , on=c("country", "state")]
+  dt0[ , (colsTotalPer100K):= lapply(.SD, function(x) {as.integer(x/population*1000000)}), by=c("country", "state"), .SDcols=cols3total][.N]
+  dt0 %>% names
+  
+  # colsPerPopulation <- paste0(cols3, "PerPopulation")
+  # dt0[ , (colsPer100K):= lapply(.SD, function(x) {round(x/population*100,2)}), by=c("country", "state"), .SDcols=cols3][.N]
+  # dt0 %>% names
+  # 
+  # colsTotalPerPopulation <- paste0(cols3total, "PerPopulation")
+  # dt0 <- dtGeo[, .(state, country ,population)][dt0 , on=c("country", "state")]
+  # dt0[ , (colsTotalPer100K):= lapply(.SD, function(x) {round(x/population*100,2)}), by=c("country", "state"), .SDcols=cols3total][.N]
+  # dt0 %>% names
+  
+  # . add per Confirmed ----
+  
+  colsPerConfirmed <- paste0(cols3, "PerConfirmed")
+  dt0[ , (colsPerConfirmed):= lapply(.SD, function(x) {as.integer(x/confirmed*100)}), by=c("country", "state"), .SDcols=cols3][.N]
+  dt0 %>% names
+  
+  colsTotalPerConfirmed <- paste0(cols3total, "PerConfirmed") 
+  dt0[ , (colsTotalPerConfirmed):= lapply(.SD, function(x) {as.integer(x/confirmed*100)}), by=c("country", "state"), .SDcols=cols3total][.N]
+  dt0 %>% names
+  
+  # . add Predicted ----
+  
+  # predictCovid <- function (x, day, v, a) {
+  #   v=
+  #    x1 <- x + vt + a*t*t/2
+  # }
+  # colsPredicted1 <- paste0(cols, "Predicted1")
+  # dt0[ , (colsPredicted) := lapply(.SD, predictCovid, 1), by=c("country", "state"), .SDcols=cols]
+  
+  return(dt0)
+}
+
+getTodayMetric  <- function (dt0, metric, strMetrics) {
+  
+  
+  # 
+  # strMetrics = c(
+  #   "New cases", # Absolute values"",
+  #   "New cases per 1 million",
+  #   'New cases (Percentation of population)',
+  #   
+  #   'Total cases',
+  #   'Totals per 1 million',
+  #   'Total cases (Percentation of population)',
+  #   
+  #   #  "Fraction of confirmed",
+  #   #  "Percentage of confirmed",
+  #   "Per Confirmed",
+  #   "Total Per Confirmed",
+  #   # "Ratio of cases",
+  #   
+  #   "Weekly daily average",
+  #   "Weekly dynamics" # 10
+  # )
+  # 
+  
+  
+  dtToday <<- dt0[date == dt0$date %>% max |
+                 #  date == dt0$date %>% max - 30 |
+                   date == dt0$date %>% max - 1 |
+                   date == dt0$date %>% max - 7  ] [ 
+                     , region:= paste0(country, " - ", state)]  %>% setcolorder("region")
+  
+  cols3 <- c("confirmed","death",  "recovered")
+  cols2 <- c("country", "state", "date")
+
+  
+  if  (metric == strMetrics[4]){
+    dtToday1 <- dtToday[, c(cols2,paste0(cols3, "Total")), with=F] %>% setnames (c(cols2,cols3)); dtToday1
+    #0 if (metric == strMetrics[5])
+    #0  dtToday1 <- dtToday[, c(cols2,paste0(cols3, "TotalPer100K")), with=F] %>% setnames (c(cols2,cols3)); dtToday1
+    #if (metric == strMetrics[6])
+    #  dtToday1 <- dtToday[, c(cols2,paste0(cols3, "TotalPerPopulation")), with=F] %>% setnames (c(cols2,cols3)); dtToday1
+    
+  }else if (metric == strMetrics[7]){
+    dtToday1 <- dtToday[, c(cols2,paste0(cols3, "PerConfirmed")), with=F] %>% setnames (c(cols2,cols3)); dtToday1
+  }else if (metric == strMetrics[8]){
+    dtToday1 <- dtToday[, c(cols2,paste0(cols3, "TotalPerConfirmed")), with=F] %>% setnames (c(cols2,cols3)); dtToday1
+    
+  }else if (metric == strMetrics[9]){
+    dtToday1 <-  dtToday[, c(cols2,paste0(cols3, "DailyAve")), with=F] %>% setnames (c(cols2,cols3)); dtToday1
+  }else if (metric == strMetrics[10]){
+    dtToday1 <-  dtToday[, c(cols2,paste0(cols3, "WeeklyDynamics")), with=F] %>% setnames (c(cols2,cols3)); dtToday1
+  } else {
+    # (metric == strMetrics[1]) {
+    dtToday1 <- dtToday[, c(cols2, cols3), with=F]; dtToday1
+  } 
+  
+  
+  
+  return(dtToday1)
+}
+
+
+
+
+getMetricsToday2old <-  function() {  # (date)
+  
+  
+  
+  metric <- c("confirmed", "death", "recovered")
+  cols <- c("state", "country")
+  
+  dtCountries1 <<- dtJHU[ 
+    , .(
+      total=sum(.SD), 
+      today= as.integer(.SD[.N]+.SD[.N-1])/2,
+      yesterday= as.integer(.SD[.N-2]+.SD[.N-1])/2,
+      
+    ), keyby = cols, .SDcol=metric]
+  
+  dtCountries1 <<- dtJHU[ 
+    , .(
+      total = sum(.SD), 
+      today2 = as.integer(.SD[.N]+.SD[.N-1])/2,
+      yesterday2 = as.integer(.SD[.N-2]+.SD[.N-1])/2,
+      
+    ), keyby = cols, .SDcol=metric]
+  
+  
+  metric = "confirmed"
+  
+  dtCountries2 <<- dtJHU [ order(date)] [  
+    , .(today= as.integer(.SD[.N]+.SD[.N-1])/2), keyby = cols, .SDcol=metric]
+  dtCountries3 <<- dtJHU [ order(date)] [  
+    , .(yesterday= as.integer(.SD[.N-2]+.SD[.N-1])/2), keyby = cols, .SDcol="confirmed"]
+  
+  a=0
+  dtCountries4 <<- dtJHU [ order(date)] [  
+    , .(DailyAveThisWeek = as.integer( (.SD[.N-a]+.SD[.N-1-a]+.SD[.N-2-a]+.SD[.N-3-a]+.SD[.N-4-a]+.SD[.N-5-a]+.SD[.N-6-a])/7 ) ), keyby = cols, .SDcol="confirmed"]; dtCountries4
+  a=7
+  dtCountries4b <<- dtJHU [ order(date)] [  
+    , .(DailyAveLastWeek = as.integer( (.SD[.N-a]+.SD[.N-1-a]+.SD[.N-2-a]+.SD[.N-3-a]+.SD[.N-4-a]+.SD[.N-5-a]+.SD[.N-6-a])/7 ) ), keyby = cols, .SDcol="confirmed"]; dtCountries4b
+  
+  a=14
+  dtCountries4c <<- dtJHU.dailytotals [ order(date)] [  
+    , .(DailyAveLastWeek2 = as.integer( (.SD[.N-a]+.SD[.N-1-a]+.SD[.N-2-a]+.SD[.N-3-a]+.SD[.N-4-a]+.SD[.N-5-a]+.SD[.N-6-a])/7 ) ), keyby = cols, .SDcol="confirmed"]; dtCountries4b
+  
+  
+  dtRegions <- dtCountries1[dtCountries2][dtCountries3][dtCountries4][dtCountries4b][dtCountries4c][
+    , WeeklyDynamics:=DailyAveThisWeek - DailyAveLastWeek][
+      ,  WeeklyDynamicsLastWeek:=DailyAveLastWeek - DailyAveLastWeek2]
+  
+  dtRegions[order(-WeeklyDynamics)][1:40]; 
+  
+  
+  
+  dtCountriesCases <- dtRegions[ , lapply(.SD, sum, na.rm=T), by=country, .SDcols = c("Cases", "today" ,"yesterday" ,"DailyAveThisWeek", "DailyAveLastWeek", "WeeklyDynamics")][order(-Cases)]; dtCountries[1:30]
+  
+  
+  
+  dtJHU.dailytotals  [, (cols):=NULL]
+  
+}
+
+
+
+testme <- function() {
+  
+  dtGeo <-readGeo()
+  #dtGeoCa <- readGeoCa()
+  
+  dtJHU <-readCovidJHU() # reads dtJHU data readCovidJHU
+  
+  dateMax <- dtJHU$date %>% max
+  dtJHU[country == 'Canada', sum(confirmed),  by = state]
+  
+  # dtUofT <- dtCases <- dtMortality <- dtRecovered <- dtTesting <- data.table()
+  # readCovidUofT()
+  
+  
+  # >>>>   input    <<<< ----
+  input <- list()
+
+  #input$date <- dtJHU$date %>% max
+
+  input$country <- c( "Canada", "US")
+  input$country <- "Canada"
+  input$state <- "(National)"
+  input$state <- "Ontario"
+  
+  # r.dt0 <- reactive({ ----
+  
+
+  # dt0 <<- copy(dtJHU)
+  dt0 <<- dtJHU[country == 'Canada']
+  # dt0 <<- dtJHU[country %in% 'Canada' & state !="(National)"]
+  
+  dt0 <<- dtJHU[ country == input$country & state == input$state ] 
+  dt0 <<- dtGeo[, .(state, country , population)][dt0 , on=c("country", "state")]
+  
+  dt0[ date == dt0$date %>% max]
+  
+  #  . addAllMetrics ----  
+   
+  dt0 <<- addAllMetrics(dt0)
+  
+  
+  #  . getTodayMetric ---- 
+  
+  dtToday <<- dt0[date == dateMax |
+                        date == dateMax - 30 |
+                        date == dateMax - 1 |
+                        date == dateMax - 7  ]
+  # dtToday <<- r.dt0()[date == input$date |
+  #                   date == input$date - 30 |
+  #                   date == input$date - 1 |
+  #                   date == input$date - 7  ]
+  dtToday[, region:= paste0(country, " - ", state)]; dtToday%>% setcolorder("region")
+  
+  dtToday[ , date:=as.character(date)]
+  
+  dtToday [date == as.character(dt0$date %>% max), date:="t"]
+  dtToday [ date ==  as.character(dt0$date %>% max - 1) , date:="t-1"]
+  dtToday [ date ==  as.character(dt0$date %>% max - 7)  , date:="t-7"]
+  dtToday [ date ==  as.character(dt0$date %>% max - 30) , date:="t-30"]
+  
+  dtToday [, unrecovered := confirmed - ifelse(is.na(recovered), 0, recovered) - ifelse(is.na(death), 0, death)]
+  
+  dtToday [, unrecoveredTotal := confirmedTotal - ifelse(is.na(recoveredTotal), 0, recoveredTotal) - ifelse(is.na(deathTotal), 0, deathTotal)]
+  
+  # dtToday [, unrecoveredPer100K :=
+  
+  # #  dtToday <<- getTodayMetric(dt0, input$date, input$metric)
+  # 
+  # dtToday <<- getTodayMetric  (dt0, strMetrics[9], strMetrics)
+  # 
+  
+  
+  # ... table, plot ----
+  
+  dtToday %>% knitr::kable()
+  
+  dtTodayHor <- dtToday %>% dcast(country + state ~ date, value.var= c("confirmed","death", "recovered"))
+  dtTodayHor %>% setnames("country", "state", paste0("confirmed", 1:4), paste0("death", 1:4), paste0("recovered", 1:4))
+  
+  DT::datatable( dtToday, 
+                 options = list(bPaginate = F) , 
+                 #   options = list(bPaginate = T,      pageLength = 15) , 
+                 filter="top"
+  ) 
+  
+  # .... plot  ----
+  
+  
+  # g <- ggplot(x, aes(reorder(variable, value), value))
+  
+  # ggplot(dtToday1) + facet_grid( . ~ region) +
+  g <- ggplot(dtToday, aes(x=state))  + 
+    coord_flip() + # facet_grid( . ~ date) +
+    scale_fill_brewer(palette = "Greens", direction = 1) +   #scale_fill_grey(0.3, 0.9) +
+    
+    #geom_col(aes_string(y=strColLast), fill="Green", alpha=0.2) +  # for plotly
+    # geom_col(aes_string(y=strColLast,  fill="Metric"), alpha=0.6) +
+    # geom_col(aes_string(y="confirmed", size="date"), alpha=0.2, fill= "yellow", size=6) +
+    # geom_col(aes_string(y="recovered"), alpha=0.2, fill= "green", size=4) +
+    # geom_col(aes_string(y="death"), alpha=0.2, fill= "red", size=2) +
+    # geom_point(aes(y=confirmed, size=as.character("date")), alpha=0.8, col="yellow", fill= "yellow") +
+    # geom_point(aes(y=recovered, size=as.character("date")), alpha=0.8, col="green", fill= "green") +
+    # geom_point(aes(y=death, size=as.character("date")), alpha=0.8, col="red", fill= "red") +
+    # 
+    # geom_point(aes_string(y="confirmed", size="date"), alpha=0.8, col="yellow") +
+    # # geom_point(aes_string(y="recovered", size=as.character("date")), alpha=0.8, col="green", fill= "green") +
+    # geom_point(aes_string(y="death", size="date"), alpha=0.8, col="red") +
+    
+    
+    geom_point(aes(y=confirmed, size=as.ordered(date) ), alpha=0.3, col="yellow") +
+  #  geom_point(aes_string(y="recovered", size=as.character("date")), alpha=0.8, col="green", fill= "green") +
+    geom_point(aes(y=death, size=as.ordered(date) ), alpha=0.3, col="red") +
+    
+  #  geom_segment( aes_string(xend="state", y=strColPrevious, yend=strColLast), size = 1, col="brown",
+      #             arrow = arrow(length = unit(0.2, "cm"))) +
+    
+    guides(fill="none", col="none") +
+    theme_bw() +
+    theme(legend.position = "bottom") +
+    
+    labs(
+      title= paste0(metric, " (Confirmed, Recovered, Deaths) "),
+      subtitle=paste0(my.paste(input$country, ", "), " on ", input$date),
+      caption = "Data: John Hopkins University \nGenerated by iTrack (https://itrack.shinyapps.io/covid)",
+      # caption="Green: Current period. Red: Previous period. Dot: historical average",
+      # caption="Cross indicates historical average. Change since last period marked by arrow",
+      #  y="Transactions",
+      y=NULL,
+      x=NULL
+    ) 
+  
+  
+  
+  g
+  ggplotly(g)
+  
+  # ... map ----
+  
+  
+  plotMapJHU.CA (dtToday, input$metric)
+  
+  
+  #  . plot Historical ---- 
+  
+  
+  
+  
+  
+}
+plotMapJHU.CA <- function (dtToday, metric=NULL) {
+  
+  # setkey(dt0,state,country)
+  # setkey(dtGeo,state,country)
+  # 
+  # my.country <- "Canada"
+  # dt <- dtJHU [country == my.country & date == my.date]; dt
+  # dt$country <- dt$Lat <- dt$Long <- NULL
+  # 
+  # dtCast <- dcast(dt, state+date ~ type,value.var="cases"); dtCast
+  
+  
+  dtCast <- dtGeo[dt0, on=c("state", "country")]; dtCast
+  
+  #  pal <- colorNumeric(c("green", "yellow", "red"), 0:30)
+  
+  
+  
+  dtCast[, ratingcol:= ifelse(is.na(confirmed), "black",
+                              ifelse(confirmed == 0, "green",
+                                     ifelse(confirmed <= 20, "yellow", "red")))]
+  
+  
+  
+  dtCast[, strMessage:= paste(
+    sprintf("<b>%s</b> <br/>", state),
+    sprintf("Total: %i <br>", confirmed), 
+    sprintf("Today: %i <br>", confirmed), 
+    sprintf("Speed: %i <br>", confirmed), 
+    sprintf("Acceleration: %i <br>", confirmed)
+  )
+  ]
+  
+  setnames(dtCast, c("Lat", "Long" ), c("lat","long"))
+  
+  
+  leaflet(data = dtCast) %>% 
+    addTiles() %>%
+    addCircleMarkers(~long, ~lat, 
+                     #color = ~pal(traveller), 
+                     color = ~ratingcol, 
+                     popup = ~as.character(strMessage),
+                     label = ~as.character(confirmed) #state)
+    ) %>% 
+    #  addMarkers(clusterOptions = markerClusterOptions())
+    #  addMarkers(~long, ~lat,   popup = ~as.character(traveller), label = paste("BWT: ", ~traveller)             )  %>%
+    addPopups(dtCast[state %in% strProvinces]$long, 
+              dtCast[state %in% strProvinces]$lat, 
+              popup = dt[state %in% strProvinces]$strMessage, 
+              options = popupOptions(closeButton = FALSE) ) %>% 
+    addLegend("bottomleft", 
+              colors = c("green", "yellow", "red", "black"),
+              labels = c("No cases",
+                         "Few cases",
+                         "Many cases",
+                         "N/A"), 
+              opacity = 0.7)
+  
+}
+
+
+
+
+
+# >>>>>>>>>>>>>..  ------------------------------
+
+library(flexdashboard)
+
+# library(coronavirus)
+# data(coronavirus)
+# coronavirus %<>%  data.table()
+
+
+coronavirus  <- fread("https://github.com/RamiKrispin/coronavirus-csv/raw/master/coronavirus_dataset.csv") 
+
+
+
+dtJHU <- dt0 <- 
+  dtToday <- dtToday1 <-  dtTodayHor <- dtGeo <- dtGeoCa <- 
+  dtCanada <- dtOntario <- data.table()
+
+dtGeo <-readGeo()
+dtJHU <-readCovidJHU(coronavirus) # reads dtJHU data readCovidJHU
+dateMax <- dtJHU$date %>% max
+
+
+#dtGeoCa <- readGeoCa()
+#dtUofT <- dtCases <- dtMortality <- dtRecovered <- dtTesting <- data.table()
+#dtUofT <- readCovidUofT()
+
+
+if (F) {
+  input <- list()
+  input$date <- dtJHU$date %>% max
+  input$country <- "Canada"
+  input$state <- "Ontario"
+}
+
+# dt <- coronavirus
+
+#checks if there is data update on the Github version
+#coronavirus::update_datasets(silence = TRUE)
+
+# 
+# `%>%` <- magrittr::`%>%`
+
+
+#------------------ Parameters ------------------
+# Set colors
+# https://www.w3.org/TR/css-color-3/#svg-color
+confirmed_color <- "purple" #"yellow" #" "purple"
+active_color <- "#3f77b4"
+recovered_color <- "green" #"forestgreen"
+death_color <- "red"
+```
+
+
+```{r covid.0.selection.Rmd, child = 'covid.0.selection.Rmd'}
+```
+
+
+```{r data from package, include=FALSE}
+
+
+#------------------ Data ------------------
+df <- coronavirus %>% 
+  # dplyr::filter(date == max(date)) %>%
+  dplyr::group_by(Country.Region, type) %>%
+  dplyr::summarise(total = sum(cases)) %>%
+  tidyr::pivot_wider(names_from =  type, 
+                     values_from = total) %>%
+  dplyr::mutate(unrecovered = confirmed - ifelse(is.na(recovered), 0, recovered) - ifelse(is.na(death), 0, death)) %>%
+  dplyr::arrange(-confirmed) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(country = dplyr::if_else(Country.Region == "United Arab Emirates", "UAE", Country.Region)) %>%
+  dplyr::mutate(country = dplyr::if_else(country == "Mainland China", "China", country)) %>%
+  dplyr::mutate(country = dplyr::if_else(country == "North Macedonia", "N.Macedonia", country)) %>%
+  dplyr::mutate(country = trimws(country)) %>%
+  dplyr::mutate(country = factor(country, levels = country)) %>%  data.table()
+
+
+df_daily <- coronavirus %>% 
+  dplyr::group_by(date, type) %>%
+  dplyr::summarise(total = sum(cases, na.rm = TRUE)) %>%
+  tidyr::pivot_wider(names_from = type,
+                     values_from = total) %>%
+  dplyr::arrange(date) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(active =  confirmed - death - recovered) %>%
+  dplyr::mutate(confirmed_cum = cumsum(confirmed),
+                death_cum = cumsum(death),
+                recovered_cum = cumsum(recovered),
+                active_cum = cumsum(active)) %>%  data.table()
+
+
+df1 <- coronavirus %>% dplyr::filter(date == max(date)) %>%  data.table()
+
+
+```
+
+
+
+
+```{r select r.dt0}
+
+
+r.dt0 <- reactive({
+  dt0 <<- dtJHU[ country == input$country & state == input$state ] 
+  dt0 <<- dtGeo[, .(state, country , population)][dt0 , on=c("country", "state")]
+  dt0 <<- addAllMetrics(dt0)
+  dt0 
+})
+
+#  . getTodayMetric ---- 
+
+r.dtToday <- reactive({  
+  
+  dtToday <<- r.dt0()[date == dateMax |
+                        date == dateMax - 30 |
+                        date == dateMax - 1 |
+                        date == dateMax - 7  ]
+  # dtToday <<- r.dt0()[date == input$date |
+  #                   date == input$date - 30 |
+  #                   date == input$date - 1 |
+  #                   date == input$date - 7  ]
+  dtToday[, region:= paste0(country, " - ", state)]; dtToday%>% setcolorder("region")
+  
+  dtToday[ , date:=as.character(date)]
+  
+  dtToday [date == as.character(dt0$date %>% max), date:="t"]
+  dtToday [ date ==  as.character(dt0$date %>% max - 1) , date:="t-01"]
+  dtToday [ date ==  as.character(dt0$date %>% max - 7)  , date:="t-07"]
+  dtToday [ date ==  as.character(dt0$date %>% max - 30) , date:="t-30"]
+  
+    dtToday[ , date:=as.ordered(date)]
+  
+  dtToday [, unrecovered := confirmed - ifelse(is.na(recovered), 0, recovered) - ifelse(is.na(death), 0, death)]
+  
+  dtToday [, unrecoveredTotal := confirmedTotal - ifelse(is.na(recoveredTotal), 0, recoveredTotal) - ifelse(is.na(deathTotal), 0, deathTotal)]
+  
+  # dtToday [, unrecoveredPer100K :=
+  dtToday
+  
+})
+
+dfCanada <- df [ country == "Canada"]
+
+r.dtCanada <- reactive({ 
+  
+  #dtOntario <- df [ country == input$country ] 
+  
+  dtCanada <<- df [ country == input$country ] 
+  dtCanada
+  
+})
+
+r.dtCanada1 <- reactive({ 
+  r.dtToday() [date=="t"]
+  })
+
+
+r.dtOntario <- reactive({
+
+  #dtOntario <- df [ country == input$country & state == input$tate ]
+
+  dtOntario
+})
+# 
+
+
+
+
+
+
+```
+
+# Today (`r format(Sys.time(), "%d %B, %Y")`)
+<!-- # World -->
+
+<!-- ## .....Row: Reload {data-height=60} -->
+
+<!-- ### Region {data-width=300} -->
+
+<!-- ```{r} -->
+<!--   #   cat( -->
+<!--   #   paste0( -->
+<!--   #     "Country:", my.paste( c(input$country, input$state), " - "),  -->
+<!--   #     "\n Population: ", dtGeo[country==input$country & state == input$state]$population -->
+<!--   #   ) -->
+<!--   # ) -->
+
+<!-- renderText({  paste0(  -->
+<!--   "Country: ", input$country,   -->
+<!--   "  (Population: ", format(dtGeo[country==input$country & state == input$state]$population, big.mark = ","), ")" -->
+<!-- ) -->
+<!-- }) -->
+
+<!-- ``` -->
+
+<!-- #### Data  -->
+
+##### The data is loaded on from [JHU Database]().The last record in this database dates `r dtJHU$date %>% max %>% format("%d %B, %Y")`. To reload data, press [here](https://itrack.shinyapps.io/covid/).
+
+
+<!-- ```{r input.reload} -->
+<!-- actionButton("goButton", -->
+<!--              paste0( -->
+<!--                "Reload Data from the JHU database" -->
+<!--                ), -->
+<!--              # paste0( -->
+<!--              #   # "The data was loaded from the JHU-World database on .", -->
+<!--              #   "The JHU-World database, from which this is data was loaded, was last updated on ", dtJHU$date %>% max %>% format("%d %B, %Y"), -->
+<!--              #   ". Click this button to reload it now."), -->
+<!--              icon("refresh"), width="100%") -->
+<!-- #actionButton("goButton", paste0("Reload data"), icon("refresh")) -->
+<!-- ``` -->
+
+
+## .....Row: value Boxes {data-height=150}
+
+
+
+### confirmed {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+        value = paste0(
+          format(r.dtToday()[date=="t"]$confirmedTotal, big.mark = ","),
+          " (", 
+          format(r.dtToday()[date=="t"]$confirmed, big.mark = ","), 
+          ")"
+          ),
+        
+
+    # value = paste(format(sum(r.dtCanada()$confirmed), big.mark = ","), "", sep = " "),
+    #value = df [ country == "Canada"]$confirmed,
+    caption = "Total Confirmed Cases (new)",
+    icon = "fas fa-user-md",
+    color =  active_color)
+})
+```
+
+
+<!-- ### active {.value-box} -->
+
+<!-- ```{r} -->
+<!-- renderValueBox({ -->
+<!--   valueBox( -->
+<!--     value = paste(format(sum(r.dtCanada()$unrecovered, na.rm = TRUE), big.mark = ","), " (", -->
+<!--                   round(100 * sum(r.dtCanada()$unrecovered, na.rm = TRUE) / sum(r.dtCanada()$confirmed), 1), -->
+<!--                   "%)", sep = ""), -->
+<!--     caption = "Unresolved Cases", icon = "fas fa-ambulance", -->
+<!--     color = active_color) -->
+<!-- }) -->
+<!-- ``` -->
+
+
+### active {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+    value = paste0(
+      format(r.dtToday()[date=="t"]$confirmedTotalPer100K, big.mark = ","),
+      " (", 
+      format(r.dtToday()[date=="t"]$confirmedPer100K, big.mark = ","), 
+      ")"
+    ),
+    # value = paste(format(sum(r.dtCanada()$unrecovered, na.rm = TRUE), big.mark = ","), " (",
+    #               round(100 * sum(r.dtCanada()$unrecovered, na.rm = TRUE) / sum(r.dtCanada()$confirmed), 1),
+    #               "%)", sep = ""),
+    caption = "Total Confirmed per 100,000 (new)", icon = "fas fa-ambulance",
+    color = confirmed_color)
+})
+```
+
+### recovered {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+        value = paste0(
+      format(r.dtToday()[date=="t"]$recoveredTotal, big.mark = ","),
+      " (", 
+      format(r.dtToday()[date=="t"]$recovered, big.mark = ","), 
+      ")"
+    ),
+    # value = paste(format(sum(r.dtCanada()$recovered, na.rm = TRUE), big.mark = ","), " (",
+    #                      round(100 * sum(r.dtCanada()$recovered, na.rm = TRUE) / sum(r.dtCanada()$confirmed), 1),
+    #                      "%)", sep = ""),
+           caption = "Recovered Cases (new)", icon = "fas fa-heartbeat",
+           color = recovered_color)
+})
+```
+
+### death {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+        value = paste0(
+      format(r.dtToday()[date=="t"]$deathTotal, big.mark = ","),
+      " (", 
+      format(r.dtToday()[date=="t"]$death, big.mark = ","), 
+      ")"
+    ),
+    # value = paste(format(sum(r.dtCanada()$death, na.rm = TRUE), big.mark = ","), " (",
+    #                      round(100 * sum(r.dtCanada()$death, na.rm = TRUE) / sum(r.dtCanada()$confirmed), 1),
+    #                      "%)", sep = ""),
+           caption = "Death Cases (new)",
+           icon = "fas fa-heart-broken",
+           color = death_color)
+})
+```
+
+
+## .... Upper Row {data-height=400 }
+<!-- ## .... Upper Row {data-height=400 .tabset .tabset-fade } -->
+
+
+<!-- ### Today -->
+
+<!-- ```{r daily_summary_one_day} -->
+
+<!-- renderPlotly({ -->
+<!--   plotly::plot_ly(data = r.dtToday(), #r.dtCanada(), # df[1:30,], -->
+<!--                   x = ~ date, # country, -->
+<!--                   y = ~ unrecovered, -->
+<!--                   # text =  ~ confirmed, -->
+<!--                   # textposition = 'auto', -->
+<!--                   type = "bar", -->
+<!--                   name = "Active", -->
+<!--                   marker = list(color = active_color)) %>% -->
+<!--     plotly::add_trace(y = ~ recovered, -->
+<!--                       # text =  ~ recovered, -->
+<!--                       # textposition = 'auto', -->
+<!--                       name = "Recovered", -->
+<!--                       marker = list(color = recovered_color)) %>% -->
+<!--     plotly::add_trace(y = ~ death, -->
+<!--                       # text =  ~ death, -->
+<!--                       # textposition = 'auto', -->
+<!--                       name = "Death", -->
+<!--                       marker = list(color = death_color)) %>% -->
+<!--     plotly::layout(barmode = 'stack', -->
+<!--                    yaxis = list(title = "Total Cases (log scaled)", -->
+<!--                                 type = "log"), -->
+<!--                    xaxis = list(title = input$state), -->
+
+<!--                    hovermode = "compare", -->
+<!--                    margin =  list( -->
+<!--                      # l = 60, -->
+<!--                      # r = 40, -->
+<!--                      b = 10, -->
+<!--                      t = 10, -->
+<!--                      pad = 2 -->
+<!--                    )) -->
+
+<!-- }) -->
+
+
+<!-- ``` -->
+
+### Timeline
+
+```{r}
+
+# plotly::plot_ly(df_daily, x = ~date, y = ~active_cum, name = 'Active', type = 'scatter', mode = 'none', stackgroup = 'one', fillcolor = "#1f77b4") %>%
+# plotly::add_trace(y = ~recovered_cum, name = 'Recovered', fillcolor = "green") %>%
+# plotly::add_trace(y = ~death_cum, name = "Death", fillcolor = "red") %>%
+#   plotly::layout(title = "",
+#          xaxis = list(title = "",
+#                       showgrid = FALSE),
+#          yaxis = list(title = "Cumulative Number of Cases",
+#                       showgrid = FALSE),
+#          legend = list(x = 0.1, y = 0.9),
+#                  hovermode = "compare")
+
+
+renderPlotly({
+plotly::plot_ly(data = r.dt0()) %>% #  df_daily) %>%
+  plotly::add_trace(x = ~ date,
+                    y = ~ confirmedDailyAve, # active_cum,
+                    type = "scatter",
+                    mode = "lines+markers",
+                    name = "confirmedDailyAve", #"Active",
+                    line = list(color = active_color),
+                    marker = list(color = active_color)) %>%
+  plotly::add_trace(x = ~ date,
+                    y = ~ recoveredDailyAve, # recovered_cum,
+                    type = "scatter",
+                    mode = "lines+markers",
+                    name = "recoveredDailyAve", #Recovered",
+                    line = list(color = recovered_color),
+                    marker = list(color = recovered_color)) %>%
+  plotly::add_trace(x = ~ date,
+                    y = ~ deathDailyAve, #death_cum,
+                    type = "scatter",
+                    mode = 'lines+markers',
+                    name = "deathDailyAve", #"Death",
+                    line = list(color = death_color),
+                    marker = list(color = death_color)) %>%
+  # plotly::add_annotations(x = as.Date("2020-03-01"),
+  #                         y = 42716,
+  #                         text = paste("# of recovered cases surpass",
+  #                                      "",
+  #                                      "the # of active cases"),
+  #                         xref = "x",
+  #                         yref = "y",
+  #                         arrowhead = 5,
+  #                         arrowhead = 3,
+  #                         arrowsize = 1,
+  #                         showarrow = TRUE,
+  #                         ax = -10,
+  #                         ay = 90) %>%
+  plotly::layout(title = "",
+                 yaxis = list(title = "Daily new cases (averaged over a week)"),
+               #  xaxis = list(title = "Date"),
+                                    xaxis = list(title = input$state),
+                 legend = list(x = 0.1, y = 0.9),
+                 hovermode = "compare")
+
+})
+
+
+```
+
+
+....Lower Row  {data-width=400}
+-----------------------------------------------------------------------
+
+### Interactive table
+
+
+```{r}
+
+DT::renderDataTable({
+
+  r.dtToday() [, .(state,date,
+                   #                    confirmedTotal,deathTotal,  recoveredTotal, 
+                   # confirmedDailyAve, deathDailyAve, recoveredDailyAve  
+
+                   confirmedTotal, confirmedDailyAve, confirmedWeeklyDynamics,  confirmedPer100K, 
+                   deathTotal, deathDailyAve, deathWeeklyDynamics, deathPer100K 
+                   )] %>%
+
+    DT::datatable(
+      # colnames = c("Country", "Confirmed", "Recovered", "Death"),
+      options = list(searchHighlight = TRUE,
+                     bPaginate = T,
+                     pageLength = 20)
+    )
+})
+
+```
+
+
+<!-- ```{r covid.3.ca.Rmd, child = 'covid.3.ca.Rmd'} -->
+<!-- ``` -->
+
+
+
+<!-- ```{r covid.2.us.Rmd, child = 'covid.2.us.Rmd'} -->
+<!-- ``` -->
+
+
+
+
+<!-- <!-- ```{r covid.8-old-tracking.Rmd, child = 'covid.8-old-tracking.Rmd'} --> 
+<!-- ``` --> 
+
+<!-- ```{r covid.9.help.Rmd, child = 'covid.9.help-2.Rmd'} -->
+<!-- ``` -->
+
+
+#  Info {data-icon="fa-info-circle"}
+
+
+<!-- # About   {data-orientation=rows, data-navmenu="Info"} -->
+
+
+<!-- #### Our Mission
+
+To raise the awareness of  public and governments on the value of Open Data and free Open Source tools and resources being made available by the rapidly growing data science community.
+-->
+
+<!-- #### Description  -->
+<!--  iTrack Covid is developped to 
+
+
+"The PSES iTrack application that allows one to visualize and efficiently analyze Public Service Employee Survey (PSES) results using free open source Data Science and Artificial Intelligence techniques.
+
+"PSES iTrack is an application that allows one to visualize and efficiently analyze Public Service Employee Survey (PSES) results using free open source Data Science and Artificial Intelligence techniques.
+
+The application is developped using state-of-art  Data Science and Artificial Intelligence  technologies. It makes it easy to extract and compare the PSES results across  deparments, questions and years, making it possible to efficiently identify the areas of concern and leadership within the Public Service. 
+Detailed Reports, containing PSES results for a selected Department, can be automatically generated."
+
+
+<!-- #### Functionalities -->
+
+
+
+####  App Info
+
+<!-- ####  Technical details -->
+
+*Name*: Interactive Covid-19 Tracker  (iTrack Covid App)    
+*Type*: Web Application. Compatible with mobile devices.    
+*URL*: https://itrack.shinyapps.io/covid
+
+*App permissions*: none     
+*License*:  [CC BY-NC](https://creativecommons.org/licenses/by-nc/4.0/legalcode)
+<!-- BSD 3-Clause License.  -->
+
+*Version*: 0.2.0 (beta) - UNDER DEVELOPMENT     
+*Last updated*: 19 April 2020
+
+<!-- *Developer*: [DG](www.gorodnichy.ca) -->
+*Developer*: [Dmitry Gorodnichy](https://www.linkedin.com/in/dmitry-gorodnichy/)    
+<!-- *Questions/Comments*: [dg@ivim.ca](email:dg@ivim.ca) -->
+
+
+
+
+#### Description
+
+The iTrack Covid is App is developped to extend the efforts of the international data science  and machine learning community  to assist tracking and forecasting of the spread of the 2019 Novel Coronavirus COVID-19 (2019-nCoV) pandemic.
+It uses open source codes and data-sets to enable visualization of historical data and  help predict further propagation of the pandemic around the globe.
+
+The App is not meant to replace other Apps and Dashboard, such as those provided by the official data providers, but rather aims at supplementing those with additional details and insights. 
+
+This work is in progress. Many more functionalities are under development, 
+including the development of predicting models and the aggregation of data from more data-bases, specifically for Canada and US.
+
+#### Disclaimer 
+
+
+The work is done on author's own initiative and personal time, it is not to be associated with any  work done by the author for the Governemnt of Canada. The author is not liable for any errors that might be present in  data or data interpretation.
+
+
+#### Data
+
+The Covid data is taken from:  
+
+- [Johns Hopkins University](https://coronavirus.jhu.edu/data) Coronavirus [repository](https://github.com/RamiKrispin/coronavirus-csv) 
+- [University of Toronto](https://art-bd.shinyapps.io/covid19canada/) dataset
+
+
+Populations data and geo-locations are taken from: 
+
+- https://worldpopulationreview.com/canadian-provinces/
+- https://simplemaps.com/data/ca-cities
+
+
+#### Acknowledgements
+
+The App is developed using R in RStudio. It leverages the R code developed by  
+[Rami Kristpin](https://github.com/RamiKrispin/coronavirus_dashboard) and 
+[Antoine Soetewey](https://github.com/AntoineSoetewey/coronavirus_dashboard), further extendinging it 
+using the codes from [iTrack PSES](https://itrack.shinyapps.io/PSES) and [iTrack Border](https://itrack.shinyapps.io/border) Apps.
+
+The following R libraries are used: 
+
+- data.table, Shiny, RSconnect
+- knitr, RMarkdown
+- ggplot2, stringr, readxl;  lubridate, magrittr, glue 
+
+
+
+<!-- The support of R community, is  gratefully acknowledged. -->
+
+#### Deployment and reproducibility 
+
+The code for this App can be shared upon request with interested individuals and organizations. 
+Additionally, some codes are also shared in [GitHub](https://ivi-m.github.io/R-Ottawa/)
+
+<!-- * Dashboard interface - the [flexdashboard](https://rmarkdown.rstudio.com/flexdashboard/) package.  -->
+<!-- * Visualization - the [plotly](https://plot.ly/r/) package for the plots and [leaflet](https://rstudio.github.io/leaflet/) for the map -->
+<!-- * Data manipulation - [dplyr](https://dplyr.tidyverse.org/), and [tidyr](https://tidyr.tidyverse.org/) -->
+<!-- * Tables - the [DT](https://rstudio.github.io/DT/) package -->
+
+<!-- **Deployment and reproducibly** -->
+
+<!-- The dashboard was deployed to Github docs. If you wish to deploy and/or modify the dashboard on your Github account, you can apply the following steps: -->
+
+<!-- * Fork the dashboard [repository](https://github.com/RamiKrispin/coronavirus_dashboard), or -->
+<!-- * Clone it and push it to your Github package -->
+<!-- * Here some general guidance about deployment of flexdashboard on Github page - [link](https://github.com/pbatey/flexdashboard-example) -->
+
+<!-- For any question or feedback, you can either open an [issue](https://github.com/RamiKrispin/coronavirus_dashboard/issues) or contact me on [Twitter](https://twitter.com/Rami_Krispin). -->
+
+<!-- **Contribution**  -->
+
+<!-- The **Map** tab was contributed by [Art Steinmetz](@adababbage) on this [pull request](https://github.com/RamiKrispin/coronavirus_dashboard/pull/1). Thanks Art! -->
+
+

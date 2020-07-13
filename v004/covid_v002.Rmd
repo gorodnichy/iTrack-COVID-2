@@ -1,0 +1,488 @@
+---
+title: "iTrack Covid"
+# author: Dmitry Gorodnichy
+output: 
+  flexdashboard::flex_dashboard:
+    # theme: simplex # journal # theme: simplex
+    orientation: rows
+    social: menu
+    # source_code: embed
+    vertical_layout: fill #scroll #fill
+runtime: shiny       
+---
+
+```{r setup, include=FALSE}
+#------------------ Global and Packages ------------------
+
+
+# https://walkerke.shinyapps.io/neighborhood_diversity/
+# setwd("/home/dmitry/GitHub/iTrack-covid-priv")
+source("covid-read.R")
+
+library(flexdashboard)
+
+# library(coronavirus)
+# data(coronavirus)
+# coronavirus %<>%  data.table()
+
+
+coronavirus  <- fread("https://github.com/RamiKrispin/coronavirus-csv/raw/master/coronavirus_dataset.csv") 
+
+
+
+dtJHU <- dt0 <- 
+  dtToday <- dtToday1 <-  dtTodayHor <- dtGeo <- dtGeoCa <- 
+  dtCanada <- dtOntario <- data.table()
+
+dtGeo <-readGeo()
+dtJHU <-readCovidJHU(coronavirus) # reads dtJHU data readCovidJHU
+dateMax <- dtJHU$date %>% max
+
+
+#dtGeoCa <- readGeoCa()
+#dtUofT <- dtCases <- dtMortality <- dtRecovered <- dtTesting <- data.table()
+#dtUofT <- readCovidUofT()
+
+
+if (F) {
+  input <- list()
+  input$date <- dtJHU$date %>% max
+  input$country <- "Canada"
+  input$state <- "Ontario"
+}
+
+# dt <- coronavirus
+
+#checks if there is data update on the Github version
+#coronavirus::update_datasets(silence = TRUE)
+
+# 
+# `%>%` <- magrittr::`%>%`
+
+
+#------------------ Parameters ------------------
+# Set colors
+# https://www.w3.org/TR/css-color-3/#svg-color
+confirmed_color <- "purple" #"yellow" #" "purple"
+active_color <- "#3f77b4"
+recovered_color <- "green" #"forestgreen"
+death_color <- "red"
+```
+
+
+```{r covid.0.selection.Rmd, child = 'covid.0.selection.Rmd'}
+```
+
+
+```{r data from package, include=FALSE}
+
+
+#------------------ Data ------------------
+df <- coronavirus %>% 
+  # dplyr::filter(date == max(date)) %>%
+  dplyr::group_by(Country.Region, type) %>%
+  dplyr::summarise(total = sum(cases)) %>%
+  tidyr::pivot_wider(names_from =  type, 
+                     values_from = total) %>%
+  dplyr::mutate(unrecovered = confirmed - ifelse(is.na(recovered), 0, recovered) - ifelse(is.na(death), 0, death)) %>%
+  dplyr::arrange(-confirmed) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(country = dplyr::if_else(Country.Region == "United Arab Emirates", "UAE", Country.Region)) %>%
+  dplyr::mutate(country = dplyr::if_else(country == "Mainland China", "China", country)) %>%
+  dplyr::mutate(country = dplyr::if_else(country == "North Macedonia", "N.Macedonia", country)) %>%
+  dplyr::mutate(country = trimws(country)) %>%
+  dplyr::mutate(country = factor(country, levels = country)) %>%  data.table()
+
+
+df_daily <- coronavirus %>% 
+  dplyr::group_by(date, type) %>%
+  dplyr::summarise(total = sum(cases, na.rm = TRUE)) %>%
+  tidyr::pivot_wider(names_from = type,
+                     values_from = total) %>%
+  dplyr::arrange(date) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(active =  confirmed - death - recovered) %>%
+  dplyr::mutate(confirmed_cum = cumsum(confirmed),
+                death_cum = cumsum(death),
+                recovered_cum = cumsum(recovered),
+                active_cum = cumsum(active)) %>%  data.table()
+
+
+df1 <- coronavirus %>% dplyr::filter(date == max(date)) %>%  data.table()
+
+
+```
+
+
+
+
+```{r select r.dt0}
+
+
+r.dt0 <- reactive({
+  dt0 <<- dtJHU[ country == input$country & state == input$state ] 
+  dt0 <<- dtGeo[, .(state, country , population)][dt0 , on=c("country", "state")]
+  dt0 <<- addAllMetrics(dt0)
+  dt0 
+})
+
+#  . getTodayMetric ---- 
+
+r.dtToday <- reactive({  
+  
+  dtToday <<- r.dt0()[date == dateMax |
+                        date == dateMax - 30 |
+                        date == dateMax - 1 |
+                        date == dateMax - 7  ]
+  # dtToday <<- r.dt0()[date == input$date |
+  #                   date == input$date - 30 |
+  #                   date == input$date - 1 |
+  #                   date == input$date - 7  ]
+  dtToday[, region:= paste0(country, " - ", state)]; dtToday%>% setcolorder("region")
+  
+  dtToday[ , date:=as.character(date)]
+  
+  dtToday [date == as.character(dt0$date %>% max), date:="t"]
+  dtToday [ date ==  as.character(dt0$date %>% max - 1) , date:="t-01"]
+  dtToday [ date ==  as.character(dt0$date %>% max - 7)  , date:="t-07"]
+  dtToday [ date ==  as.character(dt0$date %>% max - 30) , date:="t-30"]
+  
+    dtToday[ , date:=as.ordered(date)]
+  
+  dtToday [, unrecovered := confirmed - ifelse(is.na(recovered), 0, recovered) - ifelse(is.na(death), 0, death)]
+  
+  dtToday [, unrecoveredTotal := confirmedTotal - ifelse(is.na(recoveredTotal), 0, recoveredTotal) - ifelse(is.na(deathTotal), 0, deathTotal)]
+  
+  # dtToday [, unrecoveredPer100K :=
+  dtToday
+  
+})
+
+dfCanada <- df [ country == "Canada"]
+
+r.dtCanada <- reactive({ 
+  
+  #dtOntario <- df [ country == input$country ] 
+  
+  dtCanada <<- df [ country == input$country ] 
+  dtCanada
+  
+})
+
+r.dtCanada1 <- reactive({ 
+  r.dtToday() [date=="t"]
+  })
+
+
+r.dtOntario <- reactive({
+
+  #dtOntario <- df [ country == input$country & state == input$tate ]
+
+  dtOntario
+})
+# 
+
+
+
+
+
+
+```
+
+# Today (`r format(Sys.time(), "%d %B, %Y")`)
+<!-- # World -->
+
+<!-- ## .....Row: Reload {data-height=60} -->
+
+<!-- ### Region {data-width=300} -->
+
+<!-- ```{r} -->
+<!--   #   cat( -->
+<!--   #   paste0( -->
+<!--   #     "Country:", my.paste( c(input$country, input$state), " - "),  -->
+<!--   #     "\n Population: ", dtGeo[country==input$country & state == input$state]$population -->
+<!--   #   ) -->
+<!--   # ) -->
+
+<!-- renderText({  paste0(  -->
+<!--   "Country: ", input$country,   -->
+<!--   "  (Population: ", format(dtGeo[country==input$country & state == input$state]$population, big.mark = ","), ")" -->
+<!-- ) -->
+<!-- }) -->
+
+<!-- ``` -->
+
+<!-- #### Data  -->
+
+##### The data is loaded on from [JHU Database]().The last record in this database dates `r dtJHU$date %>% max %>% format("%d %B, %Y")`. To reload data, press [here](https://itrack.shinyapps.io/covid/).
+
+
+<!-- ```{r input.reload} -->
+<!-- actionButton("goButton", -->
+<!--              paste0( -->
+<!--                "Reload Data from the JHU database" -->
+<!--                ), -->
+<!--              # paste0( -->
+<!--              #   # "The data was loaded from the JHU-World database on .", -->
+<!--              #   "The JHU-World database, from which this is data was loaded, was last updated on ", dtJHU$date %>% max %>% format("%d %B, %Y"), -->
+<!--              #   ". Click this button to reload it now."), -->
+<!--              icon("refresh"), width="100%") -->
+<!-- #actionButton("goButton", paste0("Reload data"), icon("refresh")) -->
+<!-- ``` -->
+
+
+## .....Row: value Boxes {data-height=150}
+
+
+
+### confirmed {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+        value = paste0(
+          format(r.dtToday()[date=="t"]$confirmedTotal, big.mark = ","),
+          " (", 
+          format(r.dtToday()[date=="t"]$confirmed, big.mark = ","), 
+          ")"
+          ),
+        
+
+    # value = paste(format(sum(r.dtCanada()$confirmed), big.mark = ","), "", sep = " "),
+    #value = df [ country == "Canada"]$confirmed,
+    caption = "Total Confirmed Cases (new)",
+    icon = "fas fa-user-md",
+    color =  active_color)
+})
+```
+
+
+<!-- ### active {.value-box} -->
+
+<!-- ```{r} -->
+<!-- renderValueBox({ -->
+<!--   valueBox( -->
+<!--     value = paste(format(sum(r.dtCanada()$unrecovered, na.rm = TRUE), big.mark = ","), " (", -->
+<!--                   round(100 * sum(r.dtCanada()$unrecovered, na.rm = TRUE) / sum(r.dtCanada()$confirmed), 1), -->
+<!--                   "%)", sep = ""), -->
+<!--     caption = "Unresolved Cases", icon = "fas fa-ambulance", -->
+<!--     color = active_color) -->
+<!-- }) -->
+<!-- ``` -->
+
+
+### active {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+    value = paste0(
+      format(r.dtToday()[date=="t"]$confirmedTotalPer100K, big.mark = ","),
+      " (", 
+      format(r.dtToday()[date=="t"]$confirmedPer100K, big.mark = ","), 
+      ")"
+    ),
+    # value = paste(format(sum(r.dtCanada()$unrecovered, na.rm = TRUE), big.mark = ","), " (",
+    #               round(100 * sum(r.dtCanada()$unrecovered, na.rm = TRUE) / sum(r.dtCanada()$confirmed), 1),
+    #               "%)", sep = ""),
+    caption = "Total Confirmed per 100,000 (new)", icon = "fas fa-ambulance",
+    color = confirmed_color)
+})
+```
+
+### recovered {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+        value = paste0(
+      format(r.dtToday()[date=="t"]$recoveredTotal, big.mark = ","),
+      " (", 
+      format(r.dtToday()[date=="t"]$recovered, big.mark = ","), 
+      ")"
+    ),
+    # value = paste(format(sum(r.dtCanada()$recovered, na.rm = TRUE), big.mark = ","), " (",
+    #                      round(100 * sum(r.dtCanada()$recovered, na.rm = TRUE) / sum(r.dtCanada()$confirmed), 1),
+    #                      "%)", sep = ""),
+           caption = "Recovered Cases (new)", icon = "fas fa-heartbeat",
+           color = recovered_color)
+})
+```
+
+### death {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+        value = paste0(
+      format(r.dtToday()[date=="t"]$deathTotal, big.mark = ","),
+      " (", 
+      format(r.dtToday()[date=="t"]$death, big.mark = ","), 
+      ")"
+    ),
+    # value = paste(format(sum(r.dtCanada()$death, na.rm = TRUE), big.mark = ","), " (",
+    #                      round(100 * sum(r.dtCanada()$death, na.rm = TRUE) / sum(r.dtCanada()$confirmed), 1),
+    #                      "%)", sep = ""),
+           caption = "Death Cases (new)",
+           icon = "fas fa-heart-broken",
+           color = death_color)
+})
+```
+
+
+## .... Upper Row {data-height=400 }
+<!-- ## .... Upper Row {data-height=400 .tabset .tabset-fade } -->
+
+
+<!-- ### Today -->
+
+<!-- ```{r daily_summary_one_day} -->
+
+<!-- renderPlotly({ -->
+<!--   plotly::plot_ly(data = r.dtToday(), #r.dtCanada(), # df[1:30,], -->
+<!--                   x = ~ date, # country, -->
+<!--                   y = ~ unrecovered, -->
+<!--                   # text =  ~ confirmed, -->
+<!--                   # textposition = 'auto', -->
+<!--                   type = "bar", -->
+<!--                   name = "Active", -->
+<!--                   marker = list(color = active_color)) %>% -->
+<!--     plotly::add_trace(y = ~ recovered, -->
+<!--                       # text =  ~ recovered, -->
+<!--                       # textposition = 'auto', -->
+<!--                       name = "Recovered", -->
+<!--                       marker = list(color = recovered_color)) %>% -->
+<!--     plotly::add_trace(y = ~ death, -->
+<!--                       # text =  ~ death, -->
+<!--                       # textposition = 'auto', -->
+<!--                       name = "Death", -->
+<!--                       marker = list(color = death_color)) %>% -->
+<!--     plotly::layout(barmode = 'stack', -->
+<!--                    yaxis = list(title = "Total Cases (log scaled)", -->
+<!--                                 type = "log"), -->
+<!--                    xaxis = list(title = input$state), -->
+
+<!--                    hovermode = "compare", -->
+<!--                    margin =  list( -->
+<!--                      # l = 60, -->
+<!--                      # r = 40, -->
+<!--                      b = 10, -->
+<!--                      t = 10, -->
+<!--                      pad = 2 -->
+<!--                    )) -->
+
+<!-- }) -->
+
+
+<!-- ``` -->
+
+### Timeline
+
+```{r}
+
+# plotly::plot_ly(df_daily, x = ~date, y = ~active_cum, name = 'Active', type = 'scatter', mode = 'none', stackgroup = 'one', fillcolor = "#1f77b4") %>%
+# plotly::add_trace(y = ~recovered_cum, name = 'Recovered', fillcolor = "green") %>%
+# plotly::add_trace(y = ~death_cum, name = "Death", fillcolor = "red") %>%
+#   plotly::layout(title = "",
+#          xaxis = list(title = "",
+#                       showgrid = FALSE),
+#          yaxis = list(title = "Cumulative Number of Cases",
+#                       showgrid = FALSE),
+#          legend = list(x = 0.1, y = 0.9),
+#                  hovermode = "compare")
+
+
+renderPlotly({
+plotly::plot_ly(data = r.dt0()) %>% #  df_daily) %>%
+  plotly::add_trace(x = ~ date,
+                    y = ~ confirmedDailyAve, # active_cum,
+                    type = "scatter",
+                    mode = "lines+markers",
+                    name = "confirmedDailyAve", #"Active",
+                    line = list(color = active_color),
+                    marker = list(color = active_color)) %>%
+  plotly::add_trace(x = ~ date,
+                    y = ~ recoveredDailyAve, # recovered_cum,
+                    type = "scatter",
+                    mode = "lines+markers",
+                    name = "recoveredDailyAve", #Recovered",
+                    line = list(color = recovered_color),
+                    marker = list(color = recovered_color)) %>%
+  plotly::add_trace(x = ~ date,
+                    y = ~ deathDailyAve, #death_cum,
+                    type = "scatter",
+                    mode = 'lines+markers',
+                    name = "deathDailyAve", #"Death",
+                    line = list(color = death_color),
+                    marker = list(color = death_color)) %>%
+  # plotly::add_annotations(x = as.Date("2020-03-01"),
+  #                         y = 42716,
+  #                         text = paste("# of recovered cases surpass",
+  #                                      "",
+  #                                      "the # of active cases"),
+  #                         xref = "x",
+  #                         yref = "y",
+  #                         arrowhead = 5,
+  #                         arrowhead = 3,
+  #                         arrowsize = 1,
+  #                         showarrow = TRUE,
+  #                         ax = -10,
+  #                         ay = 90) %>%
+  plotly::layout(title = "",
+                 yaxis = list(title = "Daily new cases (averaged over a week)"),
+               #  xaxis = list(title = "Date"),
+                                    xaxis = list(title = input$state),
+                 legend = list(x = 0.1, y = 0.9),
+                 hovermode = "compare")
+
+})
+
+
+```
+
+
+....Lower Row  {data-width=400}
+-----------------------------------------------------------------------
+
+### Interactive table
+
+
+```{r}
+
+DT::renderDataTable({
+
+  r.dtToday() [, .(state,date,
+                   #                    confirmedTotal,deathTotal,  recoveredTotal, 
+                   # confirmedDailyAve, deathDailyAve, recoveredDailyAve  
+
+                   confirmedTotal, confirmedDailyAve, confirmedWeeklyDynamics,  confirmedPer100K, 
+                   deathTotal, deathDailyAve, deathWeeklyDynamics, deathPer100K 
+                   )] %>%
+
+    DT::datatable(
+      # colnames = c("Country", "Confirmed", "Recovered", "Death"),
+      options = list(searchHighlight = TRUE,
+                     bPaginate = T,
+                     pageLength = 20)
+    )
+})
+
+```
+
+
+<!-- ```{r covid.3.ca.Rmd, child = 'covid.3.ca.Rmd'} -->
+<!-- ``` -->
+
+
+
+<!-- ```{r covid.2.us.Rmd, child = 'covid.2.us.Rmd'} -->
+<!-- ``` -->
+
+
+
+
+<!-- ```{r covid.8-old-tracking.Rmd, child = 'covid.8-old-tracking.Rmd'} -->
+<!-- ``` -->
+
+```{r covid.9.help.Rmd, child = 'covid.9.help-2.Rmd'}
+```

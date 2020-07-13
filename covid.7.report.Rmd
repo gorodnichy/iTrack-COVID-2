@@ -1,0 +1,50 @@
+# Report
+<!-- # Full report -->
+
+
+## Under construction
+
+
+This page is Under construction.
+
+It will show full report automatically generated for selected region
+
+# Regional Average
+
+```{r national, results='asis', fig.width=10, fig.height=2.55, fig.align='center'}
+
+# pik.report5numbers(dt[KIOSK_TCD==1], "PIK National")
+# 
+# pik.report5numbers(dt[KIOSK_TCD==3], "NEXUS National")
+
+```
+
+***
+
+# By State/Province
+
+```{r results='asis', fig.width=10, fig.height=2, fig.align='center'}
+
+#for ( vendor in dtWLOC$Vendor %>% unique %>% of(2)) { # for Embross only
+for ( vendor in dtWLOC$Vendor %>% unique ) {
+  
+  DIV_START(vendor)
+  
+  # rmd.cat(glue::glue("## {vendor}"))
+  
+  dt[KIOSK_TCD==1 & WLOC %in% dtWLOC [Vendor==vendor]$WLOC] %>% 
+    pik.report5numbers(paste0(vendor, ": PIK"), F )
+  
+  dt[KIOSK_TCD==3 & WLOC %in% dtWLOC [Vendor==vendor]$WLOC] %>% 
+    pik.report5numbers(paste0(vendor, ": NEXUS"), F )
+  
+  DIV_END()
+  
+}
+
+```
+
+
+
+
+  

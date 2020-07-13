@@ -1,0 +1,149 @@
+
+
+<!-- #  Alert map -->
+# Stats and Map {data-orientation=rows}  
+
+<!-- ## Dashboard {data-height=10} -->
+  
+<!-- ##### The dashboard shows *combined* numbers for the top search results. It may include a combination of national and local results and thus may be larger than the actual  numbers. -->
+
+
+
+## Dashboard {data-height=170}
+
+### Total infected {.value-box}
+
+```{r warning = F}
+
+renderValueBox({
+  valueBox(
+    value = paste0(
+      cat.n(r.dtToday()$confirmedTotal %>% sum(na.rm = T))
+    ),
+    caption = paste0("Total infected: <br>in region of ", r.dtToday()$population %>% sum(na.rm = T) %>% cat.n, " people"),
+    
+    # caption = paste0("Total Confirmed Cases"),
+    # caption = paste0("Total infected cases"),
+    
+    icon = "fas fa-user-md",
+    color =  active_color)
+})
+```
+
+
+### Speed: New cases per day {.value-box}
+
+```{r error=F}
+renderValueBox({
+  valueBox(
+    value = paste0(
+      r.dtToday()$confirmedSpeed %>% sum(na.rm = T)  %>% cat.n()  
+    ),
+    # caption = "Speed <br>(New infected per day)", icon = "fas fa-ambulance",
+    caption = "Speed: <br>New cases per day", icon = "fas fa-ambulance",
+    color = confirmed_color)
+})
+```
+
+
+### Acceleration: Change in new cases per day {.value-box}
+
+```{r error=F}
+renderValueBox({
+  valueBox(
+    value = paste0(
+      r.dtToday()$confirmedAccel. %>% sum(na.rm = T)  %>% cat.n() 
+    ),
+    caption = "Acceleration: <br> Change in new cases per day", icon = "fas fa-ambulance",
+    color = confirmed_color)
+})
+```
+
+
+### Growth rate (R0) {.value-box}
+
+```{r error=F}
+renderValueBox({
+  valueBox(
+    value = paste0(
+      r.dtToday()$confirmedGrowth. %>% mean(na.rm = T)  %>% round(3) %>% cat.n() 
+    ),
+    caption = "Growth rate (R0) ", icon = "fas fa-ambulance",
+    color = confirmed_color)
+})
+```
+
+
+### Death rate{.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+    value = paste0(
+      # cat.n(r.dtToday()$deathsTotal  %>% sum(na.rm = T) ),
+      # " @ ",
+      round(100*r.dtToday()[, ( deathsTotal%>% sum(na.rm = T) ) / ( confirmedTotal%>% sum(na.rm = T) )  ],1),
+      "%"
+    ),
+    # value = paste(format(sum(r.dtCanada()$deaths, na.rm = TRUE), big.mark = ","), " (",
+    #                      round(100 * sum(r.dtCanada()$deaths, na.rm = TRUE) / sum(r.dtCanada()$confirmed), 1),
+    # "%)", sep = ""),
+    caption = "Death rate ",
+    # caption = "Deaths: Total - per 100,000",
+    icon = "fas fa-heart-broken",
+    color = death_color)
+})
+```
+
+
+
+
+## Map {data-height=800}
+<!-- ## Map -->
+
+### Map
+```{r}
+
+
+library(leaflet)
+library(leafpop)  
+
+renderLeaflet({
+  
+
+  
+  if (F) 
+    dt0 <- dtToday
+  
+  dt0 <- r.dtToday()
+  
+  dt <- dtGeo[dt0, on=c("country", "state", "city")]
+  
+  
+    
+  plotMap (dt, input)
+  
+})
+
+
+
+```
+
+
+
+## Notes {data-height=70}
+
+### Notes
+<!-- At the moment the Map does NOT provide results for Canada, as Geo-data for Canada has not been integrated yet. -->
+
+Please  note that dashboard shows *aggregated* numbers for all top search results, 
+and does not therefore represent the actual numbers at the local level.    
+Please also note that Geo-data for Canada has not been integrated yet. Click on the Map for more details. 
+
+<!-- It may include a combination of national and local results and thus may be larger than the actual  numbers.  -->
+
+
+
+
+
+

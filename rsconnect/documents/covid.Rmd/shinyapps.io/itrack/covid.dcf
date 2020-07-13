@@ -1,0 +1,12 @@
+name: covid
+title: covid
+username:
+account: itrack
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2143991
+bundleId: 3129972
+url: https://itrack.shinyapps.io/covid/
+when: 1589174717.42986
+asMultiple: TRUE
+asStatic: FALSE

@@ -1,0 +1,11 @@
+
+
+r.subtitle <-  reactive({
+  paste0("Top ", input$showN, " regions ",
+                 "in ", my.paste(input$country, ", "),
+                 " (sorted by '", input$sortby, "')."
+                 # , ". States/Provinces: ", my.paste(input$state, ", ")
+)
+})
+
+caption=paste0("Generated on ",  format(Sys.time(), "%d %B, %Y") ," by iTrack Covid (https://itrack.shinyapps.io/covid)")

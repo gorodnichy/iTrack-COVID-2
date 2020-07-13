@@ -1,0 +1,755 @@
+---
+title: "iTrack Covid"
+# author: Dmitry Gorodnichy
+author: "DG"
+runtime: shiny     
+output:
+  html_document:
+    code_folding: hide # need knitr::opts_chunk$set(echo=T)
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    collapsed: true
+    smooth_scroll: true
+    theme: cerulean
+# "Dmitry Gorodnichy, Elliot Cozens, Nelson Montgomery, Devan Scholefield,  Greg Stewart"
+date: "Generated on `r format(Sys.time(),'%B %d, %Y')`"
+---
+
+```{r readData, include=FALSE}
+
+
+knitr::opts_chunk$set(echo=F) # need to be T to use with "code_folding: hide""
+knitr::opts_chunk$set(include = T)
+
+# setwd("/home/dmitry/GitHub/iTrack-covid-priv")
+source("covid-read.R")
+
+if (F) {
+  input <- list()
+  #input$date <- dtJHU$date %>% max
+  input$country <- "Canada"
+  input$state <- "(National)"
+  input$state <- "Ontario"
+  input$city <- "Ottawa"
+  input$f = "Speed"
+  input$normalize = T
+  input$convolution = 7
+}
+
+
+# library(coronavirus)# data(coronavirus)# coronavirus %<>%  data.table()
+
+g <- ggplot()
+dtJHU <- dt <- dt0 <- dt00 <- dtToday <-  dtGeo <- data.table()   # All, country, state
+dtCa <- dtCases <- dtMortality <- dtRecovered <- dtTesting <-  dtGeoCa <- data.table()
+
+dtGeo <-readGeo()
+#dtGeoCa <- readGeoCa()
+
+coronavirus  <- fread("https://github.com/RamiKrispin/coronavirus-csv/raw/master/coronavirus_dataset.csv") 
+dtJHU <-readCovidJHU(coronavirus) # reads dtJHU data readCovidJHU
+
+dateMax <- dtJHU[confirmed>0]$date %>% max; dateMax
+dateMin <- dtJHU[confirmed>0]$date %>% min; dateMin
+datePlotFrom <- ymd("2020-03-12")
+
+groupby <- c("state","country")
+cols3 <- c("confirmed","death",  "recovered")
+
+addDerivatives(dtJHU, cols3, groupby) #, input$convolution)
+dtJHU[country=="Canada" & date == dateMax][1:2]
+
+
+# dtCa <- readCovidUofT()
+#dtUS <- readCovidUS()
+
+
+#------------------ Colours ------------------
+# Set colors
+# https://www.w3.org/TR/css-color-3/#svg-color
+
+confirmed_color <- "purple" #"yellow" #" "purple"
+active_color <- "#3f77b4"
+speed_color <- "#4f77b4"
+accel_color <- "#5f77b4"
+recovered_color <- "green" #"forestgreen"
+death_color <- "red"
+```
+
+
+<!-- ```{r covid.0.selection.Rmd, child = 'covid.0.selection.Rmd'} -->
+<!-- ``` -->
+
+
+
+# Selection: {.sidebar}
+
+```{r }
+
+# dateInput("date",
+#           label = h5("Select Date:"), weekstart=1,
+#           min = "2019-09-01",
+#           max= format(Sys.time(), "%Y-%m-%d"), 
+#           value = format(Sys.time(), "%Y-%m-%d") # "%d %B, %Y")`
+# )
+# 
+
+cols <- c("country", "state") 
+dt00 <- dtGeo[  dtJHU %>% unique (by=cols), on = cols]
+
+selectInput('country',
+            h5("Country (sorted by location):"),
+            multiple=F,
+            selected = "Canada",
+            # choices = dtCountries [Lat >= input$lat [1] & Lat <= input$lat  [2] & Long >= input$long [1] & Long <= input$long [2] ]
+            #choices = c(dtJHU$country %>% unique  ) 
+            choices = c(dt00[order(lng)]$country %>% unique  ) 
+            #     choices = c(dtGeo$country %>% unique %>% sort  ) 
+            # choices = c(" - All combined - ", dt$Country.Region %>% unique %>% sort() )
+)
+
+
+
+# renderUI({
+#   selectInput('state',
+#               h5("Province/State:"),
+#               # multiple=T,
+#               choices = c(dtGeo[country %in% input$country][order(lng)]$state %>% unique %>% sort() )
+#   )
+# })
+
+renderUI({
+  nStates <- dtJHU[country %in% input$country]$state %>% unique %>% length
+  selectInput('state',
+              h5(paste0 ("Province/State (out of", nStates, "):") ),
+              # multiple=T,
+              choices = c(dtJHU[country %in% input$country]$state %>% unique %>% sort() )
+  )
+})
+
+
+# 
+# renderUI({
+#   selectInput('city',
+#               h5("City/County:"),
+#               # multiple=T,
+#               choices = c(dtJHU[country %in% input$country]$state %>% unique %>% sort() )
+#   )
+# })
+# 
+
+# 
+# hr()
+# 
+
+
+radioButtons("fRadio", "Show: ", # Metric Functional:", # "f", "Functionals:", Show Compute
+                   c(
+                     "Raw data (cases/day)" = "",
+                     "Totals" = "Total",
+                     "Speed" = "Speed",
+                     "Acceleration  " = "Accel."
+                   ),
+                   selected = "Speed"
+)
+
+
+
+checkboxInput("normalize", "Normalize (per Population)", T)
+
+```
+
+
+# State/Province level (`r format(Sys.time(), "%d %B, %Y")`)
+<!-- # World -->
+
+
+
+
+
+```{r include = F}
+# . ```{r select r.dt0} ----
+
+r.dt0 <- reactive({
+  # dt0 <<- dtJHU[ country == input$country  ] 
+  
+  # dt00 <<- dtJHU[ country == input$country  ] 
+  # dt00 <<- dtGeo[, .(state, country , population)][dt00 , on=c("country", "state")]
+  
+  dt0 <<- dtJHU[ country == input$country & state == input$state ] 
+  dt0 <<- dtGeo[, .(state, country , population)][dt0 , on=c("country", "state")]
+  
+  cols3 <- c("confirmed","death",  "recovered")
+  colsPer100K <- paste0(cols3, "Per100K")
+  dt0[ , (colsPer100K):= lapply(.SD, function(x) {as.integer(x/population*1000000)}), by=c("country", "state"), .SDcols=cols3][.N]
+  dt0 %>% names
+  
+  cols3total <- paste0(cols3, "Total")
+  colsTotalPer100K <- paste0(cols3total, "Per100K")
+  dt0[ , (colsTotalPer100K):= lapply(.SD, function(x) {as.integer(x/population*1000000)}), by=c("country", "state"), .SDcols=cols3total][.N]
+  dt0 %>% names
+  
+  setcolorder(dt0, "date")
+  
+  dt0 
+})
+
+
+
+
+
+
+```
+
+
+
+
+## .....Row: value Boxes {data-height=170}
+
+
+
+### confirmed {.value-box}
+
+```{r warning = F}
+renderValueBox({
+  valueBox(
+    value = paste0(
+      cat.n(r.dt0()[date == dateMax]$confirmedTotal),
+      " (", 
+      cat.n(r.dt0()[date == dateMax]$confirmedTotalPer100K), 
+      " / mil)"
+    ),
+    
+    
+    # value = paste(format(sum(r.dtCanada()$confirmed), big.mark = ","), "", sep = " "),
+    #value = df [ country == "Canada"]$confirmed,
+    caption = paste0("Total Confirmed Cases (per Million) <br>in region of ", r.dt0()[date == dateMax]$population %>% cat.n, " people"),
+    icon = "fas fa-user-md",
+    color =  active_color)
+})
+```
+
+### speed {.value-box}
+
+```{r error=F}
+renderValueBox({
+  valueBox(
+    value = paste0(
+      sprintf("%.1f", 
+              r.dt0()[date == dateMax]$confirmedSpeed
+      ),
+      ""
+    ),
+    caption = "Speed (New cases per day)", icon = "fas fa-ambulance",
+    color = confirmed_color)
+})
+```
+
+### accel.{.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+    value = paste0(
+      sprintf("%+.1f", 
+              r.dt0()[date == dateMax]$confirmedAccel.
+      ),
+      ""
+    ),
+    caption = "Acceleration (Change in speed per day)", icon = "fas fa-ambulance",
+    color = confirmed_color)
+})
+```
+
+
+### recovered {.value-box}
+
+```{r}
+# cat.f( r.dtToday()[date=="t"]$recoveredTotal / r.dtToday()[date=="t"]$confirmedTotal ),
+# " (%) ", 
+
+renderValueBox({
+  valueBox(
+    value = paste0(
+      cat.n(r.dt0()[date == dateMax]$recoveredTotal),
+      " (",
+      round(100*r.dt0()[date == dateMax, recoveredTotal/confirmedTotal],1),
+      "%)"
+    ),
+    # value = paste(format(sum(r.dtCanada()$recovered, na.rm = TRUE), big.mark = ","), " (",
+    #                      round(100 * sum(r.dtCanada()$recovered, na.rm = TRUE) / sum(r.dtCanada()$confirmed), 1),
+    #                      "%)", sep = ""),
+    #caption = "Recovered: Total - per 100,000", 
+    caption = "Recovered (recovery rate)", 
+    icon = "fas fa-heartbeat",
+    color = recovered_color)
+})
+```
+
+### death {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+    value = paste0(
+      cat.n(r.dt0()[date == dateMax]$deathTotal),
+      " (",
+      
+      round(100*r.dt0()[date == dateMax, deathTotal/confirmedTotal],1),
+      "%)"
+    ),
+    # value = paste(format(sum(r.dtCanada()$death, na.rm = TRUE), big.mark = ","), " (",
+    #                      round(100 * sum(r.dtCanada()$death, na.rm = TRUE) / sum(r.dtCanada()$confirmed), 1),
+    # "%)", sep = ""),
+    caption = "Deaths (death rate)",
+    # caption = "Deaths: Total - per 100,000",
+    icon = "fas fa-heart-broken",
+    color = death_color)
+})
+```
+
+
+<!-- ## .... Upper Row {data-height=400 } -->
+## .... Upper Row 
+
+<!-- ## .... Upper Row {data-height=850 .tabset .tabset-fade } -->
+<!-- ### Today -->
+
+<!-- ```{r daily_summary_one_day} -->
+
+<!-- renderPlotly({ -->
+<!--   plotly::plot_ly(data = r.dtToday(), #r.dtCanada(), # df[1:30,], -->
+<!--                   x = ~ date, # country, -->
+<!--                   y = ~ unrecovered, -->
+<!--                   # text =  ~ confirmed, -->
+<!--                   # textposition = 'auto', -->
+<!--                   type = "bar", -->
+<!--                   name = "Active", -->
+<!--                   marker = list(color = active_color)) %>% -->
+<!--     plotly::add_trace(y = ~ recovered, -->
+<!--                       # text =  ~ recovered, -->
+<!--                       # textposition = 'auto', -->
+<!--                       name = "Recovered", -->
+<!--                       marker = list(color = recovered_color)) %>% -->
+<!--     plotly::add_trace(y = ~ death, -->
+<!--                       # text =  ~ death, -->
+<!--                       # textposition = 'auto', -->
+<!--                       name = "Death", -->
+<!--                       marker = list(color = death_color)) %>% -->
+<!--     plotly::layout(barmode = 'stack', -->
+<!--                    yaxis = list(title = "Total Cases (log scaled)", -->
+<!--                                 type = "log"), -->
+<!--                    xaxis = list(title = input$state), -->
+
+<!--                    hovermode = "compare", -->
+<!--                    margin =  list( -->
+<!--                      # l = 60, -->
+<!--                      # r = 40, -->
+<!--                      b = 10, -->
+<!--                      t = 10, -->
+<!--                      pad = 2 -->
+<!--                    )) -->
+
+<!-- }) -->
+
+
+<!-- ``` -->
+
+
+<!-- ### Local -->
+
+
+### Timeline 
+
+```{r}
+
+# plotly::plot_ly(df_daily, x = ~date, y = ~active_cum, name = 'Active', type = 'scatter', mode = 'none', stackgroup = 'one', fillcolor = "#1f77b4") %>%
+# plotly::add_trace(y = ~recovered_cum, name = 'Recovered', fillcolor = "green") %>%
+# plotly::add_trace(y = ~death_cum, name = "Death", fillcolor = "red") %>%
+#   plotly::layout(title = "",
+#          xaxis = list(title = "",
+#                       showgrid = FALSE),
+#          yaxis = list(title = "Cumulative Number of Cases",
+#                       showgrid = FALSE),
+#          legend = list(x = 0.1, y = 0.9),
+#                  hovermode = "compare")
+
+
+renderPlotly({
+  plotly::plot_ly(data = r.dt0()) %>% #  df_daily) %>%
+    plotly::add_trace(x = ~ date,
+                      y = ~ confirmedSpeed, # active_cum,
+                      type = "scatter",
+                      mode = "lines+markers",
+                      name = "confirmedSpeed", #"Active",
+                      line = list(color = active_color),
+                      marker = list(color = active_color)) %>%
+    plotly::add_trace(x = ~ date,
+                      y = ~ recoveredSpeed, # recovered_cum,
+                      type = "scatter",
+                      mode = "lines+markers",
+                      name = "recoveredSpeed", #Recovered",
+                      line = list(color = recovered_color),
+                      marker = list(color = recovered_color)) %>%
+    plotly::add_trace(x = ~ date,
+                      y = ~ deathSpeed, #death_cum,
+                      type = "scatter",
+                      mode = 'lines+markers',
+                      name = "deathSpeed", #"Death",
+                      line = list(color = death_color),
+                      marker = list(color = death_color)) %>%
+    # plotly::add_annotations(x = as.Date("2020-03-01"),
+    #                         y = 42716,
+    #                         text = paste("# of recovered cases surpass",
+    #                                      "",
+    #                                      "the # of active cases"),
+    #                         xref = "x",
+    #                         yref = "y",
+    #                         arrowhead = 5,
+    #                         arrowhead = 3,
+    #                         arrowsize = 1,
+    #                         showarrow = TRUE,
+  #                         ax = -10,
+  #                         ay = 90) %>%
+  plotly::layout(title = "",
+                 yaxis = list(title = "Speed (Average new cases each day"),
+                 #  xaxis = list(title = "Date"),
+                 xaxis = list(title = input$state),
+                 legend = list(x = 0.1, y = 0.9),
+                 hovermode = "compare")
+  
+})
+
+
+```
+
+
+<!-- ## ....Lower Row  {data-width=400} -->
+
+## ....Lower Row 
+
+### Table
+
+
+```{r}
+
+DT::renderDataTable({
+  
+  # dt00 <<- dtGeo[  dtJHU[country %in% input$country][confirmed>=0][date>ymd("2020-03-10")], on = c("country", "state") ]
+  # setcolorder(dt00, "date")
+  
+  dt00 <<- r.dt0()
+  
+  cols <- c("country", "lng", "lat", "population")
+  dt00[, (cols):=NULL]
+  dt00[date==dateMax |    date==dateMax-1 |    date==dateMax-7 |  date==dateMax-30 ]   %>%
+    # [, .(state,date,
+    #                  #                    confirmedTotal,deathTotal,  recoveredTotal, 
+    #                  # confirmedSpeed, deathSpeed, recoveredSpeed  
+    #                  confirmedSpeed, confirmedAccel.,                     
+    #                  deathSpeed, deathAccel., 
+    #                  recoveredSpeed, recoveredAccel. 
+    #                  
+    #                  # confirmedTotal, confirmedSpeed, confirmedAccel.,  confirmedTotalPer100K, 
+    #                  # deathTotal, deathSpeed, deathAccel., deathTotalPer100K 
+    # )] 
+    # 
+  
+  
+  DT::datatable(
+    # colnames = c("Country", "Confirmed", "Recovered", "Death"),
+    options = list(searchHighlight = TRUE,
+                   bPaginate = T,
+                   pageLength = 10)
+  )
+})
+
+```
+
+<!-- ####  timeline -->
+<!-- ```{r} -->
+
+
+<!-- renderDygraph({ -->
+
+<!--   dygraph(r.dt0(), main="Historical dynamics", group = "dt0") %>%  -->
+<!--     dySeries("confirmedSpeed")  %>%  -->
+<!--     dySeries("deathSpeed")  -->
+<!--     dyRangeSelector() %>%  -->
+<!--        # dyOptions(fillGraph = TRUE, fillAlpha = 0.4) %>%  -->
+<!--         dyOptions(drawPoints = TRUE, pointSize = 2) %>%  -->
+<!--     dyOptions(drawGrid = T) -->
+
+<!-- }) -->
+<!-- ``` -->
+
+<!-- ####  summary -->
+<!-- ```{r} -->
+<!-- renderPlot( { -->
+
+
+<!--   cols <- c("confirmed", "recovered", "death") -->
+<!--   #cols3 <- paste0(cols, "Speed") -->
+
+<!--   cols3 <- paste0(cols, input$fRadio) -->
+
+
+<!--   #dt0 <<- dtGeo[  dtJHU[country %in% input$country][confirmed>=0][date>ymd("2020-03-10")], on = c("country", "state") ] -->
+<!--   dt00 <- r.dt0() -->
+<!--   setcolorder(dt00, "date") -->
+
+<!--   #colsPer100K <- paste0(cols3, "Per100K") -->
+
+<!--   if (input$normalize == T)  -->
+<!--     dt00[ , (cols3):= lapply(.SD, function(x) {as.integer(x/population*1000000)}),.SDcols=cols3] -->
+
+
+<!--   g <<- ggplot(dt00) +   -->
+
+
+<!--     geom_line(aes_string("date", cols3[1]), alpha=0.5, col="purple", size=2) + -->
+<!--     geom_step(aes_string("date", cols3[2]), alpha=0.5, col="green", size=1) + -->
+<!--     geom_step(aes_string("date", cols3[3]), alpha=0.5, col="red", size=1) + -->
+
+
+<!--     geom_smooth(aes_string("date", cols3[1]), size = 1,  -->
+<!--                 # method= "gam",  formula = y ~ s(x,k=3), -->
+<!--                 #  method = "lm", formula = y ~ poly(x, 2),  -->
+<!--                 # method = "lm", formula = y ~ x + I(x^2),  -->
+<!--                 col = "black", linetype = "dashed", alpha=0.8) + -->
+<!--     # ylim (0, 1000) + #dtNational[[ colCases0[1] ]] %>% max) + -->
+<!--     theme_bw() + -->
+<!--     scale_x_date(date_breaks = "1 week",  -->
+<!--                  date_minor_breaks = "1 day", date_labels = "%b %d") + -->
+<!--     labs( -->
+<!--       title=input$state, -->
+<!--       # title= title, -->
+<!--       caption=paste0("Generated on ",  format(Sys.time(), "%d %B, %Y") ," by iTrack Covid (https://itrack.shinyapps.io/covid)"), -->
+<!--       #subtitle=paste0("Dates: ", dtJHU$date %>% min, " - ", dtJHU$date %>% max), -->
+<!--       y=paste("Confirmed ", input$fRadio, ifelse(input$normalize, " (per Million)","")),  -->
+<!--       x=NULL -->
+<!--     )  -->
+<!--   g -->
+
+
+
+
+<!-- }) -->
+<!-- ``` -->
+
+
+# National
+
+
+```{r results="asis"}
+DIV_START(" - National summary")
+rmd.cat("### National summary")
+
+# 
+# 
+# radioButtons("fRadio", "Show: ", # Metric Functional:", # "f", "Functionals:", Show Compute
+#                    c(
+#                      "Raw data (cases/day)" = "",
+#                      "Totals" = "Total",
+#                      "Speed" = "Speed",
+#                      "Acceleration  " = "Accel."
+#                    ),
+#              inline =T,
+#                    selected = "Speed"
+# )
+# 
+# checkboxInput("normalize", "Normalize (per Population)", T)
+
+renderPlot( {
+  
+  
+  cols <- c("confirmed", "recovered", "death")
+  #cols3 <- paste0(cols, "Speed")
+  
+  cols3 <- paste0(cols, input$fRadio)
+  
+  
+  dt00 <<- dtGeo[  dtJHU[country %in% input$country][confirmed>0][date>ymd("2020-03-10")], on = c("country", "state") ]
+  setcolorder(dt00, "date")
+  
+  #colsPer100K <- paste0(cols3, "Per100K")
+  
+  if (input$normalize == T) 
+    dt00[ , (cols3):= lapply(.SD, function(x) {as.integer(x/population*1000000)}),.SDcols=cols3]
+  
+  
+  g <<- ggplot(dt00) +  
+    #facet_grid(. ~ state, scales = "free") +
+    #facet_grid(reorder(state, Long)~.) +
+    facet_wrap(state~.) +
+    #    facet_wrap(state~., scales="free") +
+    
+        geom_point(aes_string("date", cols3[1]), alpha=0.5, col="purple", size=2) +
+
+    geom_line(aes_string("date", cols3[1]), alpha=0.5, col="purple", size=1) +
+    geom_line(aes_string("date", cols3[2]), alpha=0.5, col="green", size=1) +
+    #geom_step(aes_string("date", cols3[3]), alpha=0.5, col="red", size=1) +
+    # geom_line(aes_string("date", "confirmedSpeed"), alpha=0.5, col="purple", size=2) +
+    # geom_step(aes_string("date", "recoveredSpeed"), alpha=0.5, col="green", size=1) +
+    # geom_step(aes_string("date", "deathSpeed"), alpha=0.5, col="red", size=1) +
+    
+    
+    # geom_smooth(aes_string("date", cols3[1]), size = 1, 
+    #             method= "gam",  
+                # method= "gam",  formula = y ~ s(x,k=3),
+                #  method = "lm", formula = y ~ poly(x, 2), 
+                # method = "lm", formula = y ~ x + I(x^2), 
+                # col = "black", linetype = "dashed", alpha=0.8) +
+    # ylim (0, 1000) + #dtNational[[ colCases0[1] ]] %>% max) +
+    theme_bw() +
+    scale_x_date(date_breaks = "1 week", 
+                 date_minor_breaks = "1 day", date_labels = "%b %d") +
+    labs(
+      title=paste0("Pandemic Dynamics in ", input$country), # ": Historical vs. Predicted"),
+      # title= title,
+      caption=paste0("Generated on ",  format(Sys.time(), "%d %B, %Y") ," by iTrack Covid (https://itrack.shinyapps.io/covid)"),
+      #subtitle=paste0("Dates: ", dtJHU$date %>% min, " - ", dtJHU$date %>% max),
+      y=paste("Confirmed / Recovered Cases", input$fRadio, ifelse(input$normalize, " (per Million)","")), 
+      x=NULL
+    ) 
+  g
+  # ggplotly(g)
+  
+  
+  
+  
+})
+
+DIV_END()
+```
+
+
+# Map
+
+## ... Upper row
+
+### Case Map 
+
+```{r}
+
+
+DIV_START(" - Map")
+rmd.cat("### National summary")
+
+renderLeaflet({
+  
+  
+  library(leaflet)
+  library(leafpop)
+  library(purrr)
+  coronavirus %>% setnames("Country.Region", "country")
+  coronavirus %>% setnames("Province.State", "state")
+  
+  dt00 <- dtGeo[ , .(country, state, population)] [ 
+    coronavirus [country %in% input$country ], on =c("country", "state") ] 
+  
+  
+  populationCa <- unique(dt00, by=c("country", "state") ) [state!="", sum(population, na.rm=T)]
+  dt00[state=="" & is.na(population), population:= populationCa]
+  dt00[state=="", state:= "(National)"]
+  
+  dt00 [ , `cases per Million`:= as.integer(cases / population * 1000000)]
+   dt00 [ , cases := as.integer(cases / population * 1000000)]
+ 
+  
+  
+  cv_data_for_plot <- dt00 %>% #lazy_dt() %>% 
+    dplyr::filter(cases > 0) %>% 
+    dplyr::group_by(country,state,Lat,Long,type) %>% 
+    dplyr::summarise(cases = sum(cases)) %>% 
+    # dplyr::mutate(log_cases = 2 * log(cases)) %>% 
+    dplyr::mutate(log_cases = sqrt(cases)) %>% 
+    dplyr::ungroup()
+  
+  cv_data_for_plot.split <- cv_data_for_plot  %>% split(cv_data_for_plot$type)
+  pal <- colorFactor(c("orange", "red","green"), domain = c("confirmed", "death","recovered"))
+  map_object <- leaflet() %>% addProviderTiles(providers$Stamen.Toner)
+  
+  names(cv_data_for_plot.split) %>%
+    purrr::walk( function(df) {
+      map_object <<- map_object %>%
+        addCircleMarkers(data=cv_data_for_plot.split[[df]],
+                         lng=~Long, lat=~Lat,
+                         #                 label=~as.character(cases),
+                         color = ~pal(type),
+                         stroke = FALSE,
+                         fillOpacity = 0.8,
+                         radius = ~log_cases,
+                         popup =  leafpop::popupTable(cv_data_for_plot.split[[df]],
+                                                      feature.id = FALSE,
+                                                      row.numbers = FALSE,
+                                                      zcol=c("type","cases","country","state")),
+                         group = df,
+                         #                 clusterOptions = markerClusterOptions(removeOutsideVisibleBounds = F),
+                         labelOptions = labelOptions(noHide = F,
+                                                     direction = 'auto'))
+    })
+  
+  map_object %>%
+    addLayersControl(
+      overlayGroups = names(cv_data_for_plot.split),
+      options = layersControlOptions(collapsed = FALSE) 
+    )
+  
+})
+
+DIV_END()
+```
+
+## ... Lower row
+### Death Rates vs. Confirmed Cases per Million
+
+```{r}
+
+renderPlotly({
+  
+  dt00 <<- dtGeo[  dtJHU[country %in% input$country][confirmedTotal>20], on = c("country", "state") ]
+  setcolorder(dt00, "date")
+  
+  dt00[date==dateMax] %>% #lazy_dt() %>% 
+    # # coronavirus  %>% 
+    # # dplyr::filter(Country.Region != "Others") %>%
+    # # dplyr::group_by(country, type) %>%
+    # # dplyr::summarise(total_cases = sum(cases)) %>%
+    # # tidyr::pivot_wider(names_from = type, values_from = total_cases) %>%
+    # 
+    # dplyr::arrange(- confirmedTotal) %>%
+    # dplyr::filter(confirmedTotal >= 1000) %>%
+    dplyr::mutate(recover_rate = round( confirmedTotal / population * 1000000, 1), 
+                  death_rate = deathTotal / confirmedTotal) %>% 
+    dplyr::mutate(recover_rate = dplyr::if_else(is.na(recover_rate), 0, recover_rate),
+                  death_rate = dplyr::if_else(is.na(death_rate), 0, death_rate)) %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(confirmed_normal = as.numeric(confirmedTotal) / max(as.numeric(confirmedTotal))) %>%
+    plotly::plot_ly(y = ~ round(100 * recover_rate, 1),
+                    x = ~ round(100 * death_rate, 1),
+                    size = ~  log(confirmedTotal),
+                    sizes = c(5, 70),
+                    type = 'scatter', mode = 'markers',
+                    color = ~ state, #country,
+                    marker = list(sizemode = 'diameter' , opacity = 0.5),
+                    hoverinfo = 'text',
+                    text = ~paste("", state, # country, 
+                                  "\n Confirmed Cases: ", confirmedTotal,
+                                  "\n  Confirmed per Million: ", recover_rate,
+                                  "\n  Death / Confirmed Rate: ",  paste(round(100 * death_rate, 1), "%", sep = ""))
+    ) %>%
+    plotly::layout(yaxis = list(title = "Confirmed per Million"),
+                   xaxis = list(title = "Death / Confirmed", ticksuffix = "%", 
+                                dtick = 1, 
+                                tick0 = 0),
+                   hovermode = "compare")
+  
+  
+})
+```
+
+
+
+

@@ -1,0 +1,107 @@
+
+
+
+# Detailed Results 
+<!-- # Detailed Tables -->
+
+## .... Upper Row {.tabset .tabset-fade }
+
+<!-- ### Interactive table -->
+
+### Searchable table
+
+```{r}
+DT::renderDataTable({
+  r.dtToday()  %>%
+    # r.dt()[ date == dateMax, -(8:11)]   %>%
+    DT::datatable( 
+      #colnames = c(),
+      filter ="top",
+      options = list(
+        scrollY = TRUE,
+        scrollX = TRUE,
+        bPaginate = T,
+        pageLength = 10)
+    )
+})
+```
+
+###  Printable table
+
+```{r}
+
+renderPrint({
+  # dt0 <<- dtAll[ country == input$country  & state == input$state ] 
+  
+  r.dtToday() %>% knitr::kable()
+})
+
+```
+
+
+###  Printable table (alternative view)
+
+```{r}
+
+renderTable({
+  # dt0 <<- dtAll[ country == input$country  & state == input$state ] 
+  
+  r.dtToday() 
+})
+
+```
+
+
+
+
+
+
+<!-- <!-- ## ... Lower row --> -->
+<!-- ### Death Rates vs. Confirmed Cases per Million -->
+
+<!-- ```{r} -->
+
+<!-- renderPlotly({ -->
+
+<!--   dt00 <<- dtGeo[  dtJHU[country %in% input$country][confirmedTotal>20], on = c("country", "state") ] -->
+<!--   setcolorder(dt00, "date") -->
+
+<!--   dt00[date==dateMax] %>% #lazy_dt() %>%  -->
+<!--     # # coronavirus  %>%  -->
+<!--     # # dplyr::filter(Country.Region != "Others") %>% -->
+<!--     # # dplyr::group_by(country, type) %>% -->
+<!--     # # dplyr::summarise(total_cases = sum(cases)) %>% -->
+<!--     # # tidyr::pivot_wider(names_from = type, values_from = total_cases) %>% -->
+<!--     #  -->
+<!--     # dplyr::arrange(- confirmedTotal) %>% -->
+<!--     # dplyr::filter(confirmedTotal >= 1000) %>% -->
+<!--     dplyr::mutate(recover_rate = round( confirmedTotal / population * 1000000, 1),  -->
+<!--                   death_rate = deathTotal / confirmedTotal) %>%  -->
+<!--     dplyr::mutate(recover_rate = dplyr::if_else(is.na(recover_rate), 0, recover_rate), -->
+<!--                   death_rate = dplyr::if_else(is.na(death_rate), 0, death_rate)) %>% -->
+<!--     dplyr::ungroup() %>% -->
+<!--     dplyr::mutate(confirmed_normal = as.numeric(confirmedTotal) / max(as.numeric(confirmedTotal))) %>% -->
+<!--     plotly::plot_ly(y = ~ round(100 * recover_rate, 1), -->
+<!--                     x = ~ round(100 * death_rate, 1), -->
+<!--                     size = ~  log(confirmedTotal), -->
+<!--                     sizes = c(5, 70), -->
+<!--                     type = 'scatter', mode = 'markers', -->
+<!--                     color = ~ state, #country, -->
+<!--                     marker = list(sizemode = 'diameter' , opacity = 0.5), -->
+<!--                     hoverinfo = 'text', -->
+<!--                     text = ~paste("", state, # country,  -->
+<!--                                   "\n Confirmed Cases: ", confirmedTotal, -->
+<!--                                   "\n  Confirmed per Million: ", recover_rate, -->
+<!--                                   "\n  Death / Confirmed Rate: ",  paste(round(100 * death_rate, 1), "%", sep = "")) -->
+<!--     ) %>% -->
+<!--     plotly::layout(yaxis = list(title = "Confirmed per Million"), -->
+<!--                    xaxis = list(title = "Death / Confirmed", ticksuffix = "%",  -->
+<!--                                 dtick = 1,  -->
+<!--                                 tick0 = 0), -->
+<!--                    hovermode = "compare") -->
+
+
+<!-- }) -->
+<!-- ``` -->
+
+

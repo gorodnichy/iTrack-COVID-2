@@ -1,0 +1,197 @@
+
+#  Info {data-icon="fa-info-circle"}
+
+
+<!-- # About   {data-orientation=rows, data-navmenu="Info"} -->
+
+
+<!-- #### Functionalities -->
+
+## .... Upper Row {.tabset .tabset-fade }
+
+### About App
+
+####  App Info
+
+<!-- ####  Technical details -->
+
+*Name*: Interactive Covid-19 Tracker  (iTrack Covid App)    
+*Type*: Web Application. Compatible with mobile devices.    
+*URL*: https://itrack.shinyapps.io/covid    
+<!-- *App permissions*: none      -->
+*License*:  [CC BY-NC](https://creativecommons.org/licenses/by-nc/4.0/legalcode). *Developer*: [Dmitry Gorodnichy](https://www.linkedin.com/in/dmitry-gorodnichy/)        
+<!-- BSD 3-Clause License.  -->
+*Last updated*: 3 May 2020. *Version*: 0.0.5  - Canadian Edition (beta) - See [Release Notes]      
+<!-- *Developer*: [DG](www.gorodnichy.ca) -->
+  
+<!-- *Contact*: [dg@ivim.ca](email:dg@ivim.ca) -->
+
+
+
+
+
+#### Description
+
+The iTrack Covid is App is developed to extend the efforts of the international data science  and machine learning community in tracking and forecasting of the spread of the 2019 Novel Coronavirus COVID-19 (2019-nCoV) pandemic.
+It uses open source codes and data-sets to enable visualization of historical data and  help predict further propagation of the pandemic around the globe.
+The App is not meant to replace other Apps and Dashboard, such as those provided by the official data providers, but rather aims at supplementing those with additional details and insights. 
+See [LinkedIn article](https://www.linkedin.com/pulse/interactive-web-app-visualize-predict-spread-covid19-gorodnichy/) for more details.
+
+
+#### Disclaimer 
+
+This work is done on author's own initiative and personal time, as a hobby project. It is not to be associated with any  work done by the author for the Government of Canada. The author is not liable for any errors that might be present in  data or data interpretation.
+
+
+<!-- This work is in progress. Many more functionalities and visualizations are under development,  -->
+<!-- including the development of predicting models, interacive maps, the aggregation of data from more public databases and better graphs to allow the efficient comparison over time and over geography. -->
+
+#### Acknowledgements
+
+The App is developed using R in RStudio. It leverages the R codes
+<!-- developed ealier  -->
+<!-- by -->
+<!-- [Rami Kristpin](https://github.com/RamiKrispin/coronavirus_dashboard) and  -->
+<!-- [Antoine Soetewey](https://github.com/AntoineSoetewey/coronavirus_dashboard), further extendinging it  -->
+<!-- using the codes  -->
+from 
+[iTrack PSES](https://itrack.shinyapps.io/PSES) and [iTrack Border](https://itrack.shinyapps.io/border) Apps.
+The following R libraries are used: 
+- Data management: data.table, dtplyr,  stringr, readxl, lubridate, magrittr.
+- Data visualization: ggplot2, plotly, leaflet, DT.
+- Machine learning: caret, GMDH.
+- Publishing: shiny, rsconnect,  knitr, rmarkdown, flexdashboard.
+
+
+<!-- #### Additinal information -->
+
+<!-- Project GitHub:  -->
+<!-- *Questions/Comments*: [dg@ivim.ca](email:dg@ivim.ca) -->
+
+
+<!-- The support of R community, is  gratefully acknowledged. -->
+
+<!-- #### Deployment and reproducibility  -->
+
+<!-- The code for this App can be shared upon request with interested individuals and organizations.  -->
+<!-- Additionally, some codes are also shared in [GitHub](https://ivi-m.github.io/R-Ottawa/) -->
+
+### Data source
+
+#### Covid Databases
+
+The Covid data is taken from:  
+
+- [Johns Hopkins University Global Coronavirus database](https://coronavirus.jhu.edu/map.html), which is available at this [GitHub repository](https://github.com/RamiKrispin/coronavirus-csv) 
+- [Johns Hopkins University U.S. Coronavirus database](https://coronavirus.jhu.edu/us-map), which is available at this [GitHub  [repository](https://github.com/CSSEGISandData/COVID-19) 
+- [University of Toronto Coronavirus database](https://art-bd.shinyapps.io/covid19canada/),  which is  curated by the [COVID-19 Canada Open Data Working Group](https://github.com/ishaberry/Covid19Canada)
+
+If you'd like any other database be added to this App, please [contact me](dg@ivim.ca).
+
+
+#### Other databases
+
+Populations data and geo-locations are taken from: 
+
+- https://worldpopulationreview.com/canadian-provinces/
+- https://simplemaps.com/data/ca-cities
+
+
+### Methodology
+
+
+
+<!-- Prediction is done using the principles of the [GMDH neural networks](https://en.wikipedia.org/wiki/Group_method_of_data_handling) ( [GMDH](http://www.gmdh.net/)),  -->
+<!-- which have been developed by my former colleagues from Institute of Cybernetics in Kyiv, Ukraine. -->
+
+<!-- Additionally, I'm using some of the ideas from my own previous work on neural networks which can be found [here](https://sites.google.com/site/dmitrygorodnichy/ANN). -->
+
+<!-- These are very old techniques, yet are just as powerful now as they were back then, way before "neural network" has become a buzz word everywhere. -->
+
+<!-- Other common machines techniques, such as those available in `caret` packet R, are also being tested. -->
+
+
+
+I started this project out of passion for Machine Learning and R (RStudio - you, folks, rock there!),  and also because of self-isolation of my  family - so I have more time at home now to do many things that I would not have been able to do otherwise here in Ottawa.
+I wanted to really understand what's going on  in my city and my province (actually two - Ontario and Quebec, as we live on the border between the two) with respect to the danger of being infected by Covid. 
+However, as I started searching for this information, I soon realized that information that is provided in official sites or media outlets is rather limited. 
+Specfically, I could not find an App or site that would show the *dynamics* of the disease propagation in each region (i.e. whether it *accelerates* or *decelerates*), or easily compute the *relative metrics* of all cases (per population and per previous week and month, etc), which are two kinds of statistics   that are very important for predicting the pandemic spread.
+<!-- assessing the risk level of further pandemic propagation in my area. -->
+So I decided to build such App myself - an application that would compute all metrics that are important for understanding and predicting the spread of the pandemic, and eventually be able to model and forecast it.
+
+
+#### Machine learning (planned)
+
+<!-- This work is in progress.  -->
+
+<!-- My objective is to apply the recent advances in data processing and visualization using R (RStudio), which has become a passion of mine in recent years, with neural network / machine learning techniques, which were a passion of mine in the past,  -->
+<!-- [which were a passion of mine in the past](https://sites.google.com/site/dmitrygorodnichy/ANN). -->
+
+
+Currently, I'm planning to use  the principles of the [GMDH neural networks](https://en.wikipedia.org/wiki/Group_method_of_data_handling) ( [GMDH](http://www.gmdh.net/)), developed by my former colleagues from Institute of Cybernetics in Kyiv, Ukraine.
+Additionally, I'm using some of the ideas from my own [previous work on neural networks](https://sites.google.com/site/dmitrygorodnichy/ANN).
+These are very old techniques, yet are just as powerful now as they were back then.
+<!-- before "neural network" has become a buzz word everywhere. -->
+
+Other common machines techniques, such as those available in `caret` packet R, are also being tested.
+
+
+
+
+#### Feature Selection
+
+As always, feature selection is the most critical step. Currently, a number of functionals (functions over time) of all measured metrics are being tested, such as those visualized with historical data.
+
+#### Assumptions
+
+A number of assumptions need to be made to build the prediction model, including the rate of cross-country / cross-city contamination, percentage of self-isolation, and the likelihood of second wave and re-infestation. All of these can be siumlated in R, as done in my [previous work](https://www.linkedin.com/pulse/predicting-optimizing-border-wait-time-using-dmitry-gorodnichy/).
+Feedback is welcome on any of these! Please email it to [contact me](dg@ivim.ca).
+
+Thanks you, and stay safe and creative!
+
+
+<!-- These are listed in the menu. Feedback from epidemiologists andother profesionals on the validity of those assumptions is sought for. -->
+
+
+
+#### P.S.
+
+
+Please mind that this is a hobby project, not funded by any organization or group. So glitches and delays in its implementation are likely.
+The bonus of it however is that its fully automated  - it will compute, visualize and predict all metrics for *any country/region in the world* that is listed in any publicly available dataset. More dataset can be added later.
+
+<!-- ## Other resources on Covid -->
+
+<!-- ###  -->
+
+<!-- ### Help -->
+
+
+<!-- Currently buttons are not enabled, but will be enabled soon. -->
+
+
+# Release Notes {.hidden}
+
+0.0.5 
+
+- Complete redesign  - focused on Canada and objective to make it easy to spot regions of high risk (where pandemic accelerates, and where people should take extra care)
+- Added Growth rate
+- Designed now for easier viewing on Cell phones - offers graphs and tables for printing and interactive investigation
+- US and World data are temporarily removed
+
+0.0.4
+
+- Added button to overlay the results of the generalized additive linear model regression (grey area shows 95%  confidence interval)
+
+0.0.3 
+
+- Speed and acceleration is now computed more precisely (over several days), shown as numeric
+
+- "National" page is added for comparating results over provinces/states
+
+<!-- - Menu is enabled to control the type of dynamics to be shown (currently works on "National" page only) -->
+
+
+- "Map" page added which has
+  - Interactive Map showing the case density at National level (overlaid on province )
+  - Interactive chart showing Death rate by province at National level

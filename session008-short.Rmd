@@ -1,0 +1,30 @@
+---
+title: "COVID-19 in US"
+# subtitle: Lunch and Learn: R101 (https://ivi-m.github.io/R-Ottawa/101.html)
+# author: Dmitry Gorodnichy (www.gorodnichy.ca)
+date: "on `r format(Sys.time(), '%d %B, %Y')`"
+runtime: shiny
+output: 
+  flexdashboard::flex_dashboard:
+    social: menu
+    source_code: embed
+    orientation: columns
+    vertical_layout: fill
+---
+<!-- us.Rmd = session008.Rmd = 01-board-App.Rmd -->
+<!-- Run this code at https://itrack.shinyapps.io/covid/session008.Rmd -->
+<!-- Learn how this code is built at https://ivi-m.github.io/R-Ottawa/101.html -->
+
+```{r readCovidUS , include=FALSE}
+library(flexdashboard)
+
+knitr::opts_chunk$set(echo = FALSE)
+source("01-read.R")
+dtGeo <- readGeo()
+dtGeo[city == 'New York City', city:='New York']
+dtData <- readCovidUS() 
+dateMax<- dtData$date %>% max %>% ymd; dateMax
+```
+
+```{r session09_base.Rmd, child = 'session09_base.Rmd'}
+```

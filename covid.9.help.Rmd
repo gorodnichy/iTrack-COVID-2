@@ -18,25 +18,30 @@
 
 <!-- ####  Technical details -->
 
-*Name*: Interactive COVID-19 Tracker  (iTrack Covid App)    
+*Name*: Interactive COVID-19 Tracker  (iTrack COVID App)    
 *Type*: Web Application. Compatible with mobile devices.    
 *URL*: https://itrack.shinyapps.io/covid    
 <!-- *App permissions*: none      -->
 *License*:  [CC BY-NC](https://creativecommons.org/licenses/by-nc/4.0/legalcode).   
-<!-- BSD 3-Clause License.  -->
+<!-- License: Open Government Licence - Canada -->
 *Developer*: [Dmitry Gorodnichy](https://www.linkedin.com/in/dmitry-gorodnichy/)      
 <!-- *Developer*: [DG](www.gorodnichy.ca) -->
 
 
-*Last updated*: 3 June 2020. See [Release Notes]   
-*Version*: 0.0.8 ("All together now") 
+*Last updated*: 7 August 2020. See [Release Notes]   
+*Version*: 0.1.0 
 
 *Other versions available*:  
-[v005-ca:](https://itrack.shinyapps.io/covid/ca.Rmd) light version for Canada data    
-[r101-us:](https://itrack.shinyapps.io/covid/us.Rmd) light version for US data, used in ["Lunch and Learn: R101"](https://ivi-m.github.io/R-Ottawa/101.html)
+<!-- [v005-ca:](https://itrack.shinyapps.io/covid/ca.Rmd) light version for Canada data     -->
+<!-- [r101-us:](https://itrack.shinyapps.io/covid/us.Rmd) light version for US data, used in ["Lunch and Learn: R101"](https://ivi-m.github.io/R-Ottawa/101.html) -->
+
+[ca.Rmd:](https://itrack.shinyapps.io/covid/ca.Rmd) Canadian Edition  (faster and more detailed)
+[us.Rmd:](https://itrack.shinyapps.io/covid/us.Rmd) US Edition (built as part of the [R101 tutorial](https://ivi-m.github.io/R-Ottawa/101.html) )
+
 
 *Questions/Comments*: [dg@ivim.ca](email:dg@ivim.ca)
-<!-- *Contact*: [dg@ivim.ca](email:dg@ivim.ca) -->
+<!-- *GitHub:* https://gorodnichy.github.io/iTrack-COVID/ -->
+
 
 
 
@@ -45,12 +50,12 @@
 #### Description
 
 The iTrack Covid is App is developed to extend the efforts of the international data science  and machine learning community in tracking and forecasting of the spread of the 2019 Novel Coronavirus COVID-19 (2019-nCoV) pandemic.
-It uses open COVID-19 data-set and open source codes to enable automated search, visualization and prediction of information related to the spread of COVID-19 pandemic around the globe, at national and local levels.
+It uses open COVID-19 data-sets to enable automated search, visualization and prediction of information related to the spread of COVID-19 pandemic around the globe, at national and local levels.
 <!-- help predict further propagation of the pandemic around the globe. -->
 
-The App is not meant to replace other Apps and Dashboard, such as those provided by the official data providers, but rather aims at supplementing those with additional details and insights, 
-and helping citizens and decision-makers around the planet 
-to be better informed on what is happening on a local and global scale.
+The App is not meant to replace other Apps and Dashboard, such as those provided by the official data providers, but rather aims at supplementing those with additional details and insights. 
+<!-- and helping citizens and decision-makers around the planet  -->
+<!-- to be better informed on what is happening on a local and global scale. -->
 <!-- to make better decisions on how to act locally and think globally -->
 <!-- to act locally and think globally -->
 See [LinkedIn article](https://www.linkedin.com/pulse/interactive-web-app-visualize-predict-spread-covid19-gorodnichy/) for more details.
@@ -62,8 +67,6 @@ See [LinkedIn article](https://www.linkedin.com/pulse/interactive-web-app-visual
 This work is done on author's own initiative and personal time. It is not to be associated with any  work done by the author for the Government of Canada. The author is not liable for any errors that might be present in  data or data interpretation. For all official information related to Covid in Canada please visit the official [Coronavirus disease (COVID-19) site](https://www.canada.ca/en/public-health/services/diseases/coronavirus-disease-covid-19.html).
 
 
-<!-- This work is in progress. Many more functionalities and visualizations are under development,  -->
-<!-- including the development of predicting models, interacive maps, the aggregation of data from more public databases and better graphs to allow the efficient comparison over time and over geography. -->
 
 #### Acknowledgements
 
@@ -79,8 +82,8 @@ The following R libraries are used:
 
 - Data management: data.table, dtplyr,  stringr, readxl, lubridate, magrittr.   
 - Data visualization: ggplot2, plotly, leaflet, DT.  
-- Machine learning: caret, GMDH.   
-- Publishing: shiny, rsconnect,  knitr, rmarkdown, flexdashboard.   
+- Machine learning: caret, GMDH.
+- Publishing: shiny, rsconnect,  knitr, rmarkdown, flexdashboard, metathis.  
 
 #### Other Apps from Developer
 
@@ -107,14 +110,36 @@ The following R libraries are used:
 
 #### Canada:
 
-- Detailed confirmed cases of coronavirus disease (COVID-19), Statistics Canada: https://www150.statcan.gc.ca/n1/en/catalogue/1310076601
 
-- Estimates of population, Statistics Canada::
-https://www150.statcan.gc.ca/t1/tbl1/en/cv.action?pid=1710013401
+<!-- Table: 13-10-0781-01 -->
+- Statistics Canada. Table 13-10-0781-01 Detailed preliminary information on confirmed cases of COVID-19 (Revised), Public Health Agency of Canada
+DOI: https://doi.org/10.25318/1310078101-eng
+
+<!-- - Detailed confirmed cases of coronavirus disease (COVID-19), Statistics Canada: https://www150.statcan.gc.ca/n1/en/catalogue/1310076601 -->
+<!-- Tables: 13-10-0766-01 -->
+<!-- This document is no longer available. We regret any inconvenience this may have caused. To obtain a copy, please contact us. -->
+<!-- Description: -->
+<!-- In collaboration with the Public Health Agency of Canada (PHAC), this table provides Canadians and researchers with preliminary data to monitor only the confirmed cases of coronavirus (COVID-19) in Canada. Given the rapidly-evolving nature of this situation, these data are considered preliminary. -->
+<!-- Issue Number: 01 -->
+<!-- Frequency: Occasional -->
+<!-- DOI: https://doi.org/10.25318/1310076601-eng -->
+<!-- Replaced by: -->
+<!--  Table: 13-10-0781-01 -->
+<!--     Detailed preliminary information on confirmed cases of COVID-19 (Revised), Public Health Agency of Canada -->
+
+<!-- Related products -->
+<!-- Tables: 13-10-0775-01 -->
+<!--  Detailed preliminary information on cases of COVID-19: 4 Dimensions (Aggregated data), Public Health Agency of Canada -->
+<!--  Table: 13-10-0774-01 -->
+<!-- Detailed preliminary information on cases of COVID-19: 6 Dimensions (Aggregated data), Public Health Agency of Canada -->
 
 
-- Health region boundary files, Statistics Canada::
-https://www150.statcan.gc.ca/n1/pub/82-402-x/2011001/reg-eng.htm
+<!-- - Estimates of population, Statistics Canada:: -->
+<!-- https://www150.statcan.gc.ca/t1/tbl1/en/cv.action?pid=1710013401 -->
+
+
+<!-- - Health region boundary files, Statistics Canada:: -->
+<!-- https://www150.statcan.gc.ca/n1/pub/82-402-x/2011001/reg-eng.htm -->
 
 - [University of Toronto Coronavirus database](https://art-bd.shinyapps.io/covid19canada/),
 which is  curated by the [COVID-19 Canada Open Data Working Group](https://github.com/ishaberry/Covid19Canada)
@@ -189,19 +214,6 @@ which is available at this [GitHub   repository](https://github.com/CSSEGISandDa
 which is available at this [GitHub repository](https://github.com/RamiKrispin/coronavirus-csv) 
 
 
-<!-- The COVID-19 data is taken from:   -->
-
-<!-- - [Johns Hopkins University Global Coronavirus database](https://coronavirus.jhu.edu/map.html),  -->
-<!-- which is available at this [GitHub repository](https://github.com/RamiKrispin/coronavirus-csv)  -->
-
-<!-- - [Johns Hopkins University U.S. Coronavirus database](https://coronavirus.jhu.edu/us-map),  -->
-<!-- which is available at this [GitHub   repository](https://github.com/CSSEGISandData/COVID-19)  -->
-
-<!-- - [University of Toronto Coronavirus database](https://art-bd.shinyapps.io/covid19canada/), -->
-<!-- which is  curated by the [COVID-19 Canada Open Data Working Group](https://github.com/ishaberry/Covid19Canada) -->
-
-
-<!-- To reload data, press [here](https://itrack.shinyapps.io/covid/).  -->
 
 If you'd like any other database to be added to this App, please [contact developer](dg@ivim.ca).
 
@@ -246,70 +258,77 @@ If you'd like any other database to be added to this App, please [contact develo
 - https://613covid.ca/    
 - https://data.ontario.ca/dataset/status-of-covid-19-cases-in-ontario
   - [Data: csv](https://data.ontario.ca/dataset/f4f86e54-872d-43f8-8a86-3892fd3cb5e6/resource/ed270bb8-340b-41f9-a7c6-e8ef587e6d11/download/covidtesting.csv) -->
-   
-<!-- ### Methodology -->
-
-
-
-<!-- Prediction is done using the principles of the [GMDH neural networks](https://en.wikipedia.org/wiki/Group_method_of_data_handling) ( [GMDH](http://www.gmdh.net/)),  -->
-<!-- which have been developed by my former colleagues from Institute of Cybernetics in Kyiv, Ukraine. -->
-
-<!-- Additionally, I'm using some of the ideas from my own previous work on neural networks which can be found [here](https://sites.google.com/site/dmitrygorodnichy/ANN). -->
-
-<!-- These are very old techniques, yet are just as powerful now as they were back then, way before "neural network" has become a buzz word everywhere. -->
-
-<!-- Other common machines techniques, such as those available in `caret` packet R, are also being tested. -->
-
-
-
-<!-- I started this project out of passion for Machine Learning and R (RStudio - you, folks, rock there!),  and also because of self-isolation of my  family - so I have more time at home now to do many things that I would not have been able to do otherwise here in Ottawa. -->
-<!-- I wanted to really understand what's going on  in my city and my province (actually two - Ontario and Quebec, as we live on the border between the two) with respect to the danger of being infected by Covid.  -->
-<!-- However, as I started searching for this information, I soon realized that information that is provided in official sites or media outlets is rather limited.  -->
-<!-- Specfically, I could not find an App or site that would show the *dynamics* of the disease propagation in each region (i.e. whether it *accelerates* or *decelerates*), or easily compute the *relative metrics* of all cases (per population and per previous week and month, etc), which are two kinds of statistics   that are very important for predicting the pandemic spread. -->
-<!-- assessing the risk level of further pandemic propagation in my area. -->
-<!-- So I decided to build such App myself - an application that would compute all metrics that are important for understanding and predicting the spread of the pandemic, and eventually be able to model and forecast it. -->
-
-
-<!-- #### Machine learning (planned) -->
-
-<!-- This work is in progress.  -->
-
-<!-- My objective is to apply the recent advances in data processing and visualization using R (RStudio), which has become a passion of mine in recent years, with neural network / machine learning techniques, which were a passion of mine in the past,  -->
-<!-- [which were a passion of mine in the past](https://sites.google.com/site/dmitrygorodnichy/ANN). -->
-
-
-<!-- Currently, I'm planning to use  the principles of the [GMDH neural networks](https://en.wikipedia.org/wiki/Group_method_of_data_handling) ( [GMDH](http://www.gmdh.net/)), developed by my former colleagues from Institute of Cybernetics in Kyiv, Ukraine. -->
-<!-- Additionally, I'm using some of the ideas from my own [previous work on neural networks](https://sites.google.com/site/dmitrygorodnichy/ANN). -->
-<!-- These are very old techniques, yet are just as powerful now as they were back then. -->
-<!-- before "neural network" has become a buzz word everywhere. -->
-
-<!-- Other common machines techniques, such as those available in `caret` packet R, are also being tested. -->
-
-
-
-
-<!-- #### Feature Selection -->
-
-<!-- As always, feature selection is the most critical step. Currently, a number of functionals (functions over time) of all measured metrics are being tested, such as those visualized with historical data. -->
-
-<!-- #### Assumptions -->
-
-<!-- A number of assumptions need to be made to build the prediction model, including the rate of cross-country / cross-city contamination, percentage of self-isolation, and the likelihood of second wave and re-infestation. All of these can be siumlated in R, as done in my [previous work](https://www.linkedin.com/pulse/predicting-optimizing-border-wait-time-using-dmitry-gorodnichy/). -->
-<!-- Feedback is welcome on any of these! Please email it to [contact me](dg@ivim.ca). -->
-
-<!-- Thanks you, and stay safe and creative! -->
-
-
-
-<!-- #### P.S. -->
-
-
-<!-- Please mind that this is a hobby project, not funded by any organization or group. So glitches and delays in its implementation are likely. -->
-<!-- The bonus of it however is that its fully automated  - it will compute, visualize and predict all metrics for *any country/region in the world* that is listed in any publicly available dataset. More dataset can be added later. -->
+ 
 
 <!-- ## Other resources on Covid -->
 
 <!-- ###  -->
+
+
+
+
+
+### Help
+
+The App is designed to be fully automated in finding high-risks zones in any region of the world.
+The only required setting is the _region_, which is set by default to _Europe._ 
+The criteria for defining the risk can be changed by using the _"Sort results by:"_ radio buttons or using the API URL command line described in [API shortcuts].
+
+
+#### Terminology
+
+The types of data are processed by the App:
+
+- _Infected_, the same as _Confirmed_ (denoted as `confirmedXXXX`in  the App output), refers to the statistics related to the number of officially confirmed infected cases, as filed by regional Heath Offices and submit to the centralized COVID data repository. Note in reality,  the number of infected is likely larger (potentially much larger) than that recorded by  Heath Offices, as many people may carry the infection without realizing it and not having sympthoms.
+
+- _Mortality rate_ , the same as _Death Rate_ (denoted as `deathRate`in  the App output), is  the ratio of total Death cases to total Infected cases
+
+
+- _Speed_ of pandemic spread is the average number of new cases per day and is the derivative of Total
+
+
+- _Acceleration_ of pandemic spread is the average daily change in speed, i.e., in the average number of new cases per day, and is derivative of Speed
+
+- _Growth_ is another metric to measure acceleration, used in epidemiology (as the base of the exponential in exponential growth of the pandemic). It shows the ratio of the average number cases today to the average number cases yesterday.
+
+In the iTrack COVID App, _Speed_ , _Acceleration_  and _Growth_ are computed using differential calculus, where  raw data are processed using a convolution filter, which computes the weighted average of raw dta over the sliding window, the size of which can range from 2 days to 2 weeks and can be controlled using the  "averaging window filter" slider in the "Trends" Tab. The default filter size is 1 week (7 days). 
+
+
+
+#### Tabs
+
+The summary of the search results is shown in the [Today] Tab as a graph  where the _Speed dynamics _(i.e. the number of new cases as day), and the change in speed since yesterday  are plotted  for the Top search results. Note that sorting of the results along the vertical lines is controlled by the _Sort results by:_ buttons. 
+<!--  -->
+
+More details analysis of pandemic spread dynamics and forecasting is provided in [Trends] Tab. In this Tab, you can view how various dynamics parameters, such speed, acceleration, growth, change over time, and what they are forecasted to be tomorrow, based on the prediction models built by the App. A number of computation and visualization parameters can be controlled from this Tab. Note that sorting of the results on this page is also controlled by the _Sort results by:_ buttons.
+
+[Map] Tab shows the Dashboard and the Geographic Map of search results. 
+Note  that Dashboard shows *combined* numbers of the search results. It may aggregate combination national results with and local results and thus may be larger than the actual  numbers at local level. 
+Please click anywhere on the map to remove all pop-ups which are shown at the start. Then you can move mouse over the detected regions (marked as circles) to see a one line daily summary for each region. Clicking on it again will show the complete daily report for the region.
+Note only the regions that contain Geographic data are ploted in the [Map].
+
+[Tables] Tab shows all computed statistics in a table of format - for interactive search and printing.
+For definitions of variable names, please refer to [Terminology] page.
+
+#### Additional documentation and training
+
+Please see [LinkedIn article](https://www.linkedin.com/pulse/interactive-web-app-visualize-predict-spread-covid19-gorodnichy/) for more details and examples.
+
+<!-- #### Other versions and releases -->
+
+<!-- You can also run other versions and releases of the App using the following syntax:  -->
+<!-- [https://itrack.shinyapps.io/covid/v005.Rmd](https://itrack.shinyapps.io/covid/v005.Rmd).   -->
+<!-- See [Release Notes ] for more details on each of version and release. Some releases are region specific and are more stable than others. -->
+
+<!-- #### R101 tutorial version -->
+
+Additionally, 
+a simplified version of this App, for US only,  is developed as part of the *"Lunch and Learn: R101"* tutorial, organized by Dmitry Gorodnichy for the  [R Ottawa ](https://ivi-m.github.io/R-Ottawa) community. This version is  assessible at 
+[https://itrack.shinyapps.io/covid/us.Rmd](https://itrack.shinyapps.io/covid/us.Rmd). 
+You can follow the tutorial at 
+[R Ottawa - R101](https://ivi-m.github.io/R-Ottawa/101.html) portal.
+
+
 
 ###  API shortcuts
 
@@ -371,105 +390,53 @@ For the definition of all search metric see [Terminology] page.
 
 
 
-
-
-### Terminology
-
-The types of data are processed by the App:
-
-- _Infected_, the same as _Confirmed_ (denoted as `confirmedXXXX`in  the App output), refers to the statistics related to the number of officially confirmed infected cases, as filed by regional Heath Offices and submit to the centralized COVID data repository. Note in reality,  the number of infected is likely larger (potentially much larger) than that recorded by  Heath Offices, as many people may carry the infection without realizing it and not having sympthoms.
-
-- _Mortality rate_ , the same as _Death Rate_ (denoted as `deathRate`in  the App output), is  the ratio of total Death cases to total Infected cases
-
-
-- _Speed_ of pandemic spread is the average number of new cases per day and is the derivative of Total
-
-
-- _Acceleration_ of pandemic spread is the average daily change in speed, i.e., in the average number of new cases per day, and is derivative of Speed
-
-- _Growth_ is another metric to measure acceleration, used in epidemiology (as the base of the exponential in exponential growth of the pandemic). It shows the ratio of the average number cases today to the average number cases yesterday.
-
-In the iTrack COVID App, _Speed_ , _Acceleration_  and _Growth_ are computed using differential calculus, where  raw data are processed using a convolution filter, which computes the weighted average of raw dta over the sliding window, the size of which can range from 2 days to 2 weeks and can be controlled using the  "averaging window filter" slider in the "Trends" Tab. The default filter size is 1 week (7 days). 
-
-
-### Help
-
-The App is designed to be fully automated in finding high-risks zones in any reion of the world.
-The only required setting is the _region_, which is set by default to _Canada._ 
-The criteria for defining the risk can be changed using the _"Sort results by:"_ radio buttons or using the API URL command line described in [API shortcuts].
-
-#### Tabs
-
-The summary of the search results is shown in the [Today] Tab as a graph  where the _Speed dynamics _(i.e. the number of new cases as day), and the change in speed since yesterday  are plotted  for the Top search results. Note that sorting of the results along the vertical lines is controled by the _Sort results by:_ buttons. Sub-tab [Searchable graph] provides interactive view of the same plot - by moving your cursor over th dots, bars and lines you can see the exact values of the protted variables. You can also zoom in on any portion of the image by drugging the mouse over of this portion. Double click to zoom-out back.
-
-More details analysis of pandemic spread dynamics and forecasting is provided in [Trends] Tab. In this Tab, you can view how various dynamics parameters, such speed, acceleation, growth, change over time, and what they are forecasted to be tomorrow, based on the prediction models built by the App. A number of computation and visualization parameters can be controlled from this Tab. Note that sorting of the results on this page is also aontroled by the _Sort results by:_ buttons.
-
-[Map] Tab shows the Dashboard and the Geographic Map of search results. 
-Note  that Dashboard shows *combined* numbers of the search results. It may aggregate combination national results with and local results and thus may be larger than the actual  numbers at local level. 
-Please click anywhere on the map to remove all pop-ups which are shown at the start. Then you can move mouse over the detected regions (marked as circles) to see a one line daily summary for each region. Clicking on it again will show the complete daily report for the region.
-Note only the regions that contain Geographic data are ploted in the [Map].
-
-[Tables] Tab show all computed and recoded data in a number of format - for interactive search and printing.
-For definitions of variable names, please refer to [Terminology] page.
-
-#### Additional documentation and training
-
-Please see [LinkedIn article](https://www.linkedin.com/pulse/interactive-web-app-visualize-predict-spread-covid19-gorodnichy/) for more details and examples.
-
-<!-- #### Other versions and releases -->
-
-You can also run other versions and releases of the App using the following syntax: 
-[https://itrack.shinyapps.io/covid/v005.Rmd](https://itrack.shinyapps.io/covid/v005.Rmd).  
-See [Release Notes ] for more details on each of version and release. Some releases are region specific and are more stable than others.
-
-<!-- #### R101 tutorial version -->
-
-Additionally, 
-a simplified version of this App, for US only,  is developed as part of the *"Lunch and Learn: R101"* tutorial, organized by Dmitry Gorodnichy for the  [R Ottawa ](https://ivi-m.github.io/R-Ottawa) community. This version is  assessible at 
-[https://itrack.shinyapps.io/covid/us.Rmd](https://itrack.shinyapps.io/covid/us.Rmd). 
-You can follow the tutorial at 
-[R Ottawa - R101](https://ivi-m.github.io/R-Ottawa/101.html) portal.
-
-
-
 # Release Notes {.hidden}
 
 ## ...
 
-Note: These are all beta releases, i.e., they are in the process of development and have not been fully tested.
-The versions that have hyper-links can be run by clicking on these links.
+*Last updated*: 7 August May 2020.
+*Version*: 0.1.0  
+<!-- ("Thoughts meander like a restless wind") -->
+
+- Processing and graphics optimized
+- Growth (Reproduction Rate, Rt) is now computed and can be used for searching
+- Bugs fixed, Stable release
+
+
+<!-- Note: These are all beta releases, i.e., they are in the process of development and have not been fully tested. -->
+<!-- The versions that have hyper-links can be run by clicking on these links. -->
 <!-- Other available versions:  -->
 <!-- The following versions are still available:  -->
 
 
 *Last updated*: 24 May 2020.
-*Version*: 0.0.8 ("Putting it all together")  
+*Version*: 0.0.8 
 
 - Fixing bugs and optimizing interface
 - Linking Canada and US light editions, which are faster to load and easier to use
 - Help page is added
- 
-*Last updated*: 17 May 2020.  
-*Version*: 0.0.7 ("Putting it all together")  - putting it all together
+
+*Last updated*: 17 May 2020.
+*Version*: 0.0.7 ("Putting it all together")  
 
 
 - Map and dashboard are added back
 - More search metrics
-- Link to Mobile version versionn with API URL 
+- Link to Mobile version version with API URL
 - Description provided
 
 
-*Last updated*: 10 May 2020.  - [Run this version](https://itrack.shinyapps.io/covid/v006.Rmd)   
-*Version*: 0.0.6  ("Automating detection of high-risk regions") - International, US and Canada at National, Provincial & Municipal level  
+*Last updated*: 10 May 2020.  - [Run this version](https://itrack.shinyapps.io/covid/v006.Rmd)
+*Version*: 0.0.6  ("Automating detection of high-risk regions") - International, US and Canada at National, Provincial & Municipal level
 
 - US and international data added and merged with Canada data
-- Detailed dynamics analysis improved 
+- Detailed dynamics analysis improved
 - Daily summary added
 - Automated search of high-risk regions enabled
 - More search criteria added
 
 
-*Last updated*: 3 May 2020.     - [Run this version](https://itrack.shinyapps.io/covid/v005.Rmd)    
+*Last updated*: 3 May 2020.     - [Run this version](https://itrack.shinyapps.io/covid/v005.Rmd)
 *Version*: 0.0.5  ("Should I go or should I stay?") - Canada at National, Provincial & Municipal level, simplified Canadian only version.
 
 - Complete redesign  - focused on making it as practical as possible, using Canada munipical data as example, with objective to make it easy to spot regions of high risk (where pandemic accelerates, and where people should take extra care)
@@ -479,22 +446,22 @@ The versions that have hyper-links can be run by clicking on these links.
 
 
 
-*Last updated*: 26 April 2020.     - [Run this version](https://itrack.shinyapps.io/covid/v004.Rmd)   
+*Last updated*: 26 April 2020.     - [Run this version](https://itrack.shinyapps.io/covid/v004.Rmd)
 *Version*: 0.0.4 ("Modeling the data") - International at National & Provincial level
 
-- Added Modeling functionality: 
+- Added Modeling functionality:
 - All time-series relationship shown
 - Added button to overlay the results of the generalized additive linear model regression (grey area shows 95%  confidence interval)
 
-*Last updated*: 19 April 2020.    
+*Last updated*: 19 April 2020.
 *Version*: 0.0.3 ("Making data meaningful and interactive ") - International at National & Provincial level
 
 - "National" page is added for comparating results over provinces/states
-  - You can now compare results accros each other : 
+  - You can now compare results accros each other :
   - all metrics are now also computed relative to population (reported per Million)
 - Speed and acceleration is now computed more precisely (over several days), shown as numeric
 
-*Last updated*: 12  April 2020.   - [Run this version](https://itrack.shinyapps.io/covid/v002.Rmd)   
+*Last updated*: 12  April 2020.   - [Run this version](https://itrack.shinyapps.io/covid/v002.Rmd)
 *Version*: 0.0.2 ("Making data interactive ") - International at National & Provincial level
 
 - First version using R Shiny framework to make interactive dashboard

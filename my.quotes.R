@@ -1,10 +1,10 @@
 
-source("dt.R")
-library(statquotes)
-quotes %>% names
-
-statquote(topic="science")
-quote_cloud()
+# source("dt.R")
+# library(statquotes)
+# quotes %>% names
+# 
+# statquote(topic="science")
+# quote_cloud()
 
 if(T) {
   qq <- 2222

@@ -1,58 +1,6 @@
 
 
 
-# Detailed Results 
-<!-- # Detailed Tables -->
-
-## .... Upper Row {.tabset .tabset-fade }
-
-<!-- ### Interactive table -->
-
-### Searchable table
-
-```{r}
-DT::renderDataTable({
-  r.dtToday()  %>%
-    # r.dt()[ date == dateMax, -(8:11)]   %>%
-    DT::datatable( 
-      #colnames = c(),
-      filter ="top",
-      options = list(
-        scrollY = TRUE,
-        scrollX = TRUE,
-        bPaginate = T,
-        pageLength = 10)
-    )
-})
-```
-
-###  Printable table
-
-```{r}
-
-renderPrint({
-  # dt0 <<- dtAll[ country == input$country  & state == input$state ] 
-  
-  r.dtToday() %>% knitr::kable()
-})
-
-```
-
-
-###  Printable table (alternative view)
-
-```{r}
-
-renderTable({
-  # dt0 <<- dtAll[ country == input$country  & state == input$state ] 
-  
-  r.dtToday() 
-})
-
-```
-
-
-
 
 
 

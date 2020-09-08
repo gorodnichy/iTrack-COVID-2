@@ -74,6 +74,9 @@ renderPlot( {
 
 ```{r radioButtons}
 
+# sliderInput("daysToTrack", label = "Days to track:",
+#             width="100%",
+#             min = 7, max = 90, value=60)
 
 dateInput("date",
           label =  h4("Change start date:"), weekstart=1,
@@ -85,18 +88,6 @@ dateInput("date",
 
 checkboxInput("scale", h4("Keep scale constant"), F)
 
-
-
-# h6("* where population data available")
-# h6("(* where population size is known)")
-
-
-
-# 
-# # checkboxInput("recovered", "Include recovered statistics", F)
-# # checkboxInput("deaths", "Include death statistics", F)
-# checkboxInput("recovered", "Show recovery rate", F)
-# checkboxInput("deaths", "Show death rate", F)
 
 
 radioButtons("fRadio", h4("Show"), # LPlot: Metric Functional:", # "f", "Functionals:", Show Compute
@@ -118,9 +109,6 @@ radioButtons("fRadio", h4("Show"), # LPlot: Metric Functional:", # "f", "Functio
 )
 
 
-# hr()
-
-# h4("Step 3: Model and Forecast ")
 #
 checkboxInput("trend", h4("Overlay model"), T)
 # checkboxInput("predict", "Show predictions (COMING SOON)", F)

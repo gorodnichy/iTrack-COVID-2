@@ -1,5 +1,6 @@
 # source("../D7.common/dt.R")  
 
+# https://shiny.rstudio.com/articles/google-analytics.html
 
 #.0 Common functions ----
 if (T) {
@@ -32,6 +33,11 @@ if (T) {
   library(DT)
   library(leaflet)
   library(dygraphs)
+  
+  
+  library(leaflet)
+  library(leafpop)  
+  
   
   #library(timeDate)
   # library(zoo) # DT[, V1:=na.locf(V1, fromLast=F)]

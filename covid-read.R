@@ -5,8 +5,14 @@
 # source("covid-read.R")
 source("dt.R")  
 source("my.quotes.R")
-library(flexdashboard)
 
+
+caption.covid  <- paste0(
+  "Generated", 
+  " on ",  format(Sys.time(), "%d %B, %Y") ,
+  " by iTrack COVID (https://itrack.shinyapps.io/covid)")
+
+caption=caption.covid
 STR_ALL <- "ALL"
 STR_TOTAL <- "COMBINED"
 # STR_TOTAL <- "TOTAL"
@@ -55,14 +61,6 @@ if (F) { # input ----
 
 
 
-caption=paste0("Generated on ",  format(Sys.time(), "%d %B, %Y") ," by iTrack COVID (https://itrack.shinyapps.io/covid)")
-
-
-caption.covid  <- paste0(
-  # "Change in number of infected since yesterday is marked by arrow.\n", 
-  "Generated", 
-  #" on ",  format(Sys.time(), "%d %B, %Y") ,
-  " by iTrack Covid (https://itrack.shinyapps.io/covid)")
 
 
 
@@ -101,23 +99,140 @@ covid.reduceToTopNCitiesToday <- function(dt0, N=5) {
 
 
 readGeo <- function() {
-  if (F) {
-    return(readRDS("dtCities-fromJHU.Rds"))
-  }
-  dtGeo <- fread("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv") %>% 
-    dt.rmcols (c("UID"  , "iso2" ,   "iso3"  ,   "code3", "FIPS", "Combined_Key"))  %>% 
-    setnames(c("city", "state", "country", "lat", "lng", "population")) %>% lazy_dt() %>% 
-    #   filter(state %ni% c ("Diamond Princess", "Grand Princess", "Recovered")) %>% 
-    as.dt 
+  dtGeo <- fread("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv") 
+  dtGeo[c(1:4)]
+  dtGeo[c(1:2, (.N-1):.N), 1:3]
+  cols <- c("UID"  , "iso2" ,   "iso3"  ,   "code3", "FIPS", "Combined_Key")
+  dtGeo [ ,(cols):=NULL] ;  
+  dtGeo %>% setnames(c("city", "state", "country", "lat", "lng", "population")) 
   
+  dtGeo <- dtGeo[country=="US"]
+  dtGeo[is.na(lat)]$city
+  
+  dtGeo
   dtGeo[ state == "", state:=STR_TOTAL]
   dtGeo[ city == "", city:=STR_TOTAL]
   
   setcolorder(dtGeo, c( "country" , "state" , "city" , "lat", "lng" , "population"  ) )
-  # saveRDS(dtGeo, "dtCities-fromJHU.Rds")
-  return(dtGeo)
+  
+  dtGeo[city == 'New York City', city:='New York']
+  
+  
+  
+  dtGeo
 }
 
+readCovidUS <- function() {
+  # read confirmed data
+  dt <- fread("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv", stringsAsFactors = T )
+  dt %>% names
+  dt[.N]
+  dt[.N, 1:12]
+  dt[c(1:2, (.N-1):.N), 1:12]
+  cols <- c ( 1:5, 8:11 ) ;
+  dt [ ,(cols):=NULL] ;   
+  dtUSc <- dt %>% melt(id=1:2);   
+  dtUSc[c(1,.N)]
+  setnames(dtUSc, c("city", "state", "date", "confirmed"));dtUSc [c(1,.N)]
+  setkeyv (dtUSc, c("date", "state", "city") )
+  dtUSc
+  
+  # read deaths data  
+  dt <- fread("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_US.csv", stringsAsFactors = T )
+  # ...  
+  cols <- c ( 1:5, 8:12 ) ;
+  dt [ ,(cols):=NULL] ;   
+  dtUSd <- dt %>% melt(id=1:2);   
+  setnames(dtUSd, c("city", "state", "date", "deaths"))
+  setkeyv (dtUSd, c("date", "state", "city") )
+  dtUSd
+  # merge two data sets;  
+  
+  dtUS <- merge(dtUSc, dtUSd, by =  c("city", "state", "date") )
+  dtUS
+  # OR
+  #  dtUS <- dtUSc [dtUSd]
+  
+  dtUS [, date := as.character(date) %>% mdy ]
+  
+  dtUS$country <- "US"
+  dtUS$recovered <- NA
+  dtUS[ city == "", city:=STR_TOTAL]
+  setcolorder(dtUS, c("date", "country", "state", "city", "confirmed", "deaths", "recovered" ))
+  
+  
+  dtUS %>% summary
+  
+  dateMax <- dtUS$date %>% max()
+  dtUS$state %>% unique
+  dtUS [state=='New York']$city %>% unique()
+  
+  dtUS[date==dateMax]
+  dtUS[confirmed > 10000]
+  dtUS[confirmed > 100000 & state=='New York']
+  
+  
+  return (dtUS)
+}
+
+
+if (F) {
+  readGeo <- function() {
+    if (F) {
+      return(readRDS("dtCities-fromJHU.Rds"))
+    }
+    dtGeo <- fread("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv") %>% 
+      dt.rmcols (c("UID"  , "iso2" ,   "iso3"  ,   "code3", "FIPS", "Combined_Key"))  %>% 
+      setnames(c("city", "state", "country", "lat", "lng", "population")) %>% lazy_dt() %>% 
+      #   filter(state %ni% c ("Diamond Princess", "Grand Princess", "Recovered")) %>% 
+      as.dt 
+    
+    dtGeo[ state == "", state:=STR_TOTAL]
+    dtGeo[ city == "", city:=STR_TOTAL]
+    
+    setcolorder(dtGeo, c( "country" , "state" , "city" , "lat", "lng" , "population"  ) )
+    # saveRDS(dtGeo, "dtCities-fromJHU.Rds")
+    return(dtGeo)
+  }
+  
+  
+  
+  readCovidUS <- function() {
+    
+    cols <- c ( 1:5, 8:11 ) ;
+    dtUSc <- fread("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv", stringsAsFactors = T )
+    dtUSc [ ,(cols):=NULL] ;   dtUSc <- dtUSc %>% melt(id=1:2);   setnames(dtUSc, c("city", "state", "date", "confirmed"))
+    
+    cols <- c ( 1:5, 8:12 ) ;
+    dtUSd <- fread("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_US.csv", stringsAsFactors = T )
+    dtUSd [ ,(cols):=NULL] ;   dtUSd <- dtUSd %>% melt(id=1:2);   setnames(dtUSd, c("city", "state", "date", "deaths"))
+    
+    #  DOES NOT EXIST dtUSr <- fread("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_US.csv")
+    
+    lapply (list(dtUSc, dtUSd), setkeyv, c("city" ,  "state" ,   "date"))
+    dtUS <- dtUSc [dtUSd]
+    
+    rm(dtUSc, dtUSd);
+    dtUS [, date := as.character(date) %>% mdy ]
+    
+    
+    dtUS
+    dtUS[is.na(date)]
+    
+    dtUS[is.na(confirmed)]
+    
+    colMetrics <- c("confirmed","deaths")
+    dtUS [, (colMetrics):= lapply(.SD, tidyr::replace_na, 0), .SDcol = colMetrics]
+    
+    
+    dtUS$country <- "US"
+    dtUS$recovered <- NA
+    dtUS[ city == "", city:=STR_TOTAL]
+    setcolorder(dtUS, c("date", "country", "state", "city", "confirmed", "deaths", "recovered" ))
+    
+  }
+  
+}
 
 readCovidJHU <- function(coronavirus_data=NULL) {
   
@@ -140,42 +255,6 @@ readCovidJHU <- function(coronavirus_data=NULL) {
   dtJHU[ state == "", state:=STR_TOTAL, by=country]
   setcolorder(dtJHU, c("date", "country", "state", "city", "confirmed", "deaths", "recovered" ))
   dtJHU
-}
-
-
-readCovidUS <- function() {
-  
-  cols <- c ( 1:5, 8:11 ) ;
-  dtUSc <- fread("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv", stringsAsFactors = T )
-  dtUSc [ ,(cols):=NULL] ;   dtUSc <- dtUSc %>% melt(id=1:2);   setnames(dtUSc, c("city", "state", "date", "confirmed"))
-  
-  cols <- c ( 1:5, 8:12 ) ;
-  dtUSd <- fread("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_US.csv", stringsAsFactors = T )
-  dtUSd [ ,(cols):=NULL] ;   dtUSd <- dtUSd %>% melt(id=1:2);   setnames(dtUSd, c("city", "state", "date", "deaths"))
-  
-  #  DOES NOT EXIST dtUSr <- fread("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_US.csv")
-  
-  lapply (list(dtUSc, dtUSd), setkeyv, c("city" ,  "state" ,   "date"))
-  dtUS <- dtUSc [dtUSd]
-  
-  rm(dtUSc, dtUSd);
-  dtUS [, date := as.character(date) %>% mdy ]
-  
-  
-  dtUS
-  dtUS[is.na(date)]
-  
-  dtUS[is.na(confirmed)]
-  
-  colMetrics <- c("confirmed","deaths")
-  dtUS [, (colMetrics):= lapply(.SD, tidyr::replace_na, 0), .SDcol = colMetrics]
-  
-  
-  dtUS$country <- "US"
-  dtUS$recovered <- NA
-  dtUS[ city == "", city:=STR_TOTAL]
-  setcolorder(dtUS, c("date", "country", "state", "city", "confirmed", "deaths", "recovered" ))
-  
 }
 
 
@@ -276,7 +355,7 @@ readGeoCa <- function() {
 
 
 
-readCovidUofT.2 <- function () {
+readCovidUofT.2 <- function () { # csv from their github, which is produced from their google doc
   dtCAc <- fread("https://github.com/ishaberry/Covid19Canada/raw/master/timeseries_hr/cases_timeseries_hr.csv", stringsAsFactors = T )
   dtCAd <- fread("https://github.com/ishaberry/Covid19Canada/raw/master/timeseries_hr/mortality_timeseries_hr.csv", stringsAsFactors = T ) 
   
@@ -360,6 +439,8 @@ readCovidUofT <- function () {
   
   dt00 [, (colsCases):= lapply(.SD, tidyr::replace_na, 0), .SDcol = colsCases]
   
+  
+  
   dt0 <- dt0 %>% rbind(dt00) 
   
   dt0[, city:=iconv(city,to="ASCII//TRANSLIT")]
@@ -427,62 +508,18 @@ readCaGIS <- function() {
   
 }
 
-# ****************************************************** -------
+# 
+# covid.reduceToTopNCitiesToday <- function(dt0, N=5) {
+#   
+#   dateMax <- dt0$date %>% max
+#   dt <- dt0[date==dateMax][order(-confirmed)][1: min(N, nrow(dt))];
+#   dt
+#   topNcities <- dt$city ; 
+#   topNcities
+#   dt <- dt0[ city %in% topNcities];
+#   dt
+# }
 
-
-covid.reduceToTopNCitiesToday <- function(dt0, N=5) {
-  
-  dateMax <- dt0$date %>% max
-  dt <- dt0[date==dateMax][order(-confirmed)][1: min(N, nrow(dt))];
-  dt
-  topNcities <- dt$city ; 
-  topNcities
-  dt <- dt0[ city %in% topNcities];
-  dt
-}
-
-
-addDerivatives <- function (dt0, colsCases, colsGeo, convolution_window=3, difference_window=1) {
-  
-  colTotal <- paste0(colsCases, "Total")
-  colSpeed <- paste0(colsCases, "Speed") # DailyAve") # "Speed"
-  colAccel <- paste0(colsCases, "Accel") # "WeeklyDynamics") # "Accel." WeeklyAccel - change since last week in DailyAve
-  # colSpeedAve <- paste0(colsCases, "SpeedAve")
-  colAccel. <- paste0(colsCases, "Accel.")  # AccelAve
-  colGrowth <- paste0(colsCases, "Growth")  #
-  colGrowth. <- paste0(colsCases, "Growth.")  #
-  colGrowth.Accel <- paste0(colsCases, "Growth.Accel")  #
-  
-  
-  dt0[ ,  (colTotal) := cumsum(.SD),  by=c(colsGeo), .SDcols = colsCases]
-  dt0[ ,  (colSpeed) := frollmean(.SD, convolution_window, align = "right", fill=0),  by=c(colsGeo), .SDcols = colsCases][, (colSpeed) := lapply(.SD, round, 1), .SDcols = colSpeed]
-  
-  dt0[ ,  (colSpeed) := lapply(.SD, function(x) ifelse (x<0,0,x) ), .SDcols = colSpeed]
-  
-  dt0[ ,  (colAccel) := .SD - shift(.SD,difference_window),  by=c(colsGeo), .SDcols = colSpeed]
-  
-  dt0[ ,  (colAccel.) := frollmean(.SD, convolution_window, align = "right", fill=0),  by=c(colsGeo), .SDcols = colAccel][, (colAccel.) := lapply(.SD, round, 1), .SDcols = colAccel.]
-  
-  
-  # dN(T)/ N(T)
-  # dt0[ ,  confirmedGrowth0 := confirmedTotal/confirmedSpeed]
-  # dt0[ ,  recoveredGrowth0 := recoveredTotal/recoveredSpeed]
-  # dt0[ ,  deathGrowth0 := deathTotal/deathSpeed]
-  
-  # dN(T+1) / dN(T)
-  dt0[ ,  (colGrowth) := .SD / shift(.SD, difference_window<-1),  by=c(colsGeo), .SDcols = colSpeed]
-  
-  dt0[ ,  (colGrowth.) := frollmean(.SD, 2, align = "right", fill=0),  by=c(colsGeo), .SDcols = colGrowth][, (colGrowth.) := lapply(.SD, round, 3), .SDcols = colGrowth.]
-  
-  # dt0[ ,  (colGrowth.) := colGrowth,  by=c(colsGeo), .SDcols = colGrowth][, (colGrowth.) := lapply(.SD, round, 3), .SDcols = colGrowth.]
-  
-  
-  dt0[ ,  (colGrowth.Accel) := .SD - shift(.SD,difference_window),  by=c(colsGeo), .SDcols = colGrowth.][, (colGrowth.Accel) := lapply(.SD, round, 3), .SDcols = colGrowth.Accel]
-  
-  dt0[, (colAccel):= NULL]
-  dt0[, (colGrowth) := NULL]
-  
-}
 
 
 # predictCovid <- function (x, t, v, a) {
@@ -499,604 +536,68 @@ if (F) {
   dt
 }
 
-addPredictions  <- function (dt00, colsCases,  date0=dateMax, N=7) {
-  # dt00$result <- "Observed"
-  dt00[ , .(date, confirmedSpeed,result)]
-  r2 <- r <- dt00 [date==date0]
-  r2$result <- r$result <- "Expected"
-  
-  r2$date <- r$date <- dt00 [date==date0]$date + N
-  
-  a <- r$confirmed + r$confirmedAccel.*N ; a
-  b <- r$confirmed * r$confirmedGrowth.^N ; b
-  aa <- r$confirmed + r$confirmedAccel*N ; aa
-  bb <- r$confirmed * r$confirmedGrowth^N ; bb
-  
-  r$confirmed <- min(a,b,aa,bb) %>% max(0)
-  r2$confirmed <- min(a,b,aa,bb) %>% max(0)
-  
-  dt00 <- dt00 %>% rbind(r) %>% rbind(r2) %>% unique 
-  setkey(dt00, date)
-  
-  # [1]  0.0  0.0  0.0  0.0  0.0  0.0  0.0  2.0  2.2  2.2  2.2  2.4  2.1  1.8  2.2  3.2  4.4  5.5  9.5 15.0 20.9 28.1 32.1 35.0 36.4
-  # [26] 38.2 38.2 35.6 33.0 30.2 29.4 29.9 30.1 31.1 30.0 31.1 33.8 32.9 34.9 37.0 39.1 40.5 41.8 44.5 41.5 44.1 43.9 45.5 49.8 53.6
-  # [51] 55.4 56.1 55.5 53.1 50.5 44.8 38.2  
-  # >   r$confirmed  # [1] 24
-  # >   r$confirmedSpeed  # [1] 38.2
-  # >   aa <- r$confirmed + r$confirmedAccel ; aa   # [1] 17.4
-  # >   a <- r$confirmed + r$confirmedAccel. ; a    # [1] 22.55
-  # >   bb <- r$confirmed * r$confirmedGrowth ; bb  # [1] 20.46429
-  # >   b <- r$confirmed * r$confirmedGrowth. ; b   # [1] 23.28
-}
 
-# predictCovid <- function (totalToday, days, dailySpeed, dailyAccel) {
-#   x1 <- x + v*t + a*t*t/2
-#   if (x1<0) x1 <- 0
-#   x1
-# }
-# 
-# getPredicted <- function (dt0) {
-#   
-#   colsPredicted1 <- paste0(cols, "Predicted1")
-#   dt0[ , (colsPredicted) := lapply(.SD, predictCovid, ), by=c("country", "state"), .SDcols=cols]
-#   
-#   t = 1
-#   c <- dt0[date==dt0$date %>% max] %$% predictCovid(confirmedTotal, 0, confirmedDailyAve, confirmedWeeklyDynamics)
-#   
-#   
-#   
-#   
-# }
 
 
 if (F) {
-  
-  g1 <- ggplot(dt00, aes(x=city)) +
-    coord_flip() +
-    scale_col_brewer(palette = "Greens", direction = 1) +   #scale_fill_grey(0.3, 0.9) +
-    
-    #geom_col(aes_string(y=strColLast), fill="Green", alpha=0.2) +  # for plotly
-    geom_col(aes_string(y=strColLast,  col="date"), alpha=0.6) +
-    geom_point(aes_string(y=strColLast), alpha=0.9, col="green", size=7) +
-    geom_point(aes_string(y=strColPrevious), alpha=0.8, col="brown", size=4) +
-    geom_segment( aes_string(xend="Metric", y=strColPrevious, yend=strColLast), size = 1, col="brown",
-                  arrow = arrow(length = unit(0.2, "cm"))) +
-    
-    guides(fill="none", col="none") +
-    theme_bw() +
-    theme(legend.position = "bottom") +
-    
-    labs(
-      title= title,
-      subtitle=paste0("Dates: ", from, " - ", to),
-      caption = "Change since previous period is marked by arrow.",
-      # caption="Green: Current period. Red: Previous period. Dot: historical average",
-      # caption="Cross indicates historical average. Change since last period marked by arrow",
-      #  y="Transactions",
-      y=NULL,
-      x=NULL
-    ) 
-  
-  
+  "
+Other databases, dashboards and COVID-19 trackers for Canada
+Official: www150.statcan.gc.ca: Table: 13-10-0766-01
+Data: zip
+https://art-bd.shinyapps.io/covid19canada (https://github.com/ishaberry/Covid19Canada)
+https://art-bd.shinyapps.io/Ontario_Health_Unit_IDEA_model/
+https://experience.arcgis.com/experience/2f1a13ca0b29422f9b34660f0b705043/
+https://www.covid-19canada.com/
+https://covid19tracker.ca/
+http://gilchrist.ca/jeff/COVID-19/index.html ( http://gilchrist.ca/jeff/COVID-19/Ottawa.html)
+https://covid19canada.herokuapp.com/
+Ottawa & Ontario
+https://www.ottawapublichealth.ca/en/reports-research-and-statistics/la-maladie-coronavirus-covid-19.aspx
+Data: xls
+https://613covid.ca/
+https://data.ontario.ca/dataset/status-of-covid-19-cases-in-ontario
+Data: csv
+  "
   
 }
 
 
-getTodayMetric  <- function (dt0, metric, strMetrics) {
+
+readCovidOttawa <- function() {
+  
+  library(readxl)
+  
+  # read_excel reads both xls and xlsx files
+  read_excel("my-old-spreadsheet.xls")
+  read_excel("my-new-spreadsheet.xlsx")
+  
+  # Specify sheet with a number or name
+  read_excel("my-spreadsheet.xls", sheet = "data")
+  read_excel("my-spreadsheet.xls", sheet = 2)
+  dtOt <- read_excel("https://can01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fwww.arcgis.com%2Fsharing%2Frest%2Fcontent%2Fitems%2F235c68c04008424bbf2dc69ee8cdd941%2Fdata&data=02%7C01%7Ccatherine.millar%40ottawa.ca%7C14abab7de8bd4e54ce5a08d7fccfdb96%7Cdfcc033ddf874c6ea1b88eaa73f1b72e%7C0%7C0%7C637255841974360463&sdata=O6qYdDFJOguJx1VionMUXu4%2FmiLQvyMy68Gq7nR8MsE%3D&reserved=0,sheet = 1")  
+  
+  dtOt <- fread("https://can01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fwww.arcgis.com%2Fsharing%2Frest%2Fcontent%2Fitems%2F235c68c04008424bbf2dc69ee8cdd941%2Fdata&data=02%7C01%7Ccatherine.millar%40ottawa.ca%7C14abab7de8bd4e54ce5a08d7fccfdb96%7Cdfcc033ddf874c6ea1b88eaa73f1b72e%7C0%7C0%7C637255841974360463&sdata=O6qYdDFJOguJx1VionMUXu4%2FmiLQvyMy68Gq7nR8MsE%3D&reserved=0")  
   
   
-  dtToday <<- dt0[date == dt0$date %>% max |
-                    #  date == dt0$date %>% max - 30 |
-                    date == dt0$date %>% max - 1 |
-                    date == dt0$date %>% max - 7  ] [ 
-                      , region:= paste0(country, " - ", state)]  %>% setcolorder("region")
+  str <- "https://can01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fwww.arcgis.com%2Fsharing%2Frest%2Fcontent%2Fitems%2F235c68c04008424bbf2dc69ee8cdd941%2Fdata&data=02%7C01%7Ccatherine.millar%40ottawa.ca%7C14abab7de8bd4e54ce5a08d7fccfdb96%7Cdfcc033ddf874c6ea1b88eaa73f1b72e%7C0%7C0%7C637255841974360463&sdata=O6qYdDFJOguJx1VionMUXu4%2FmiLQvyMy68Gq7nR8MsE%3D&reserved=0"
+  
+  str1 <-"https://ago-item-storage.s3.us-east-1.amazonaws.com/235c68c04008424bbf2dc69ee8cdd941/COVID19_MapPublic_DataTables_EN.xlsx?X-Amz-Security-Token=IQoJb3JpZ2luX2VjENL%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEaCXVzLWVhc3QtMSJHMEUCIQCkK4wPlpygqlJM1qTJjN2Uqeu7iYDbaw2O4GNooqS4IAIgPDcatIrg5%2Fr1SBo3LyG82rWHbnJTLq7LvR29GRuSTFIqtAMIOxAAGgw2MDQ3NTgxMDI2NjUiDNw%2BhBeixG1dPYZkliqRA7A6LqeOz4lhXxzpAdtJipv4AYHxy6NmxS1S0AaqXFZC48%2BWdUMq%2F997U2pehvW%2FRfIQHuPn8F%2Bclh7glo2OAhRQ9%2FbWRxuGwm88AwiOCsK3MgizfqOYvpJubfClpkEMsuvhd%2B%2FfA41ATNsrc9wY6W3EpVqozj1P5iQOYomq34lWbOcwaGvaoo1sJ%2FKpcLkftw9nKyw94MqzOmMGVyNLKJv%2FcICXmo2uDwvd3syAdOFuPnc1Ncj25ox32%2FAD8Ht4kBc%2BngOZQsxybg%2F9icu61vYp2IkDkViECu%2F7tNQG8vl34XH80lHiiPnnw9Ut4bsS1FWELNGMcnpV2gKjK270Qpdp5hxZn6bU%2FS6E%2F25RL9YRomNZzobw0Jx23jQoKPBlgJ0FQ4wF4vev5L%2FzcUu4m8%2BqRu7IP3hk5JYg02l5qRCH%2FKZoUZgvKXnUeFLaMffPCT5%2B0nemlZcYWq11W%2BSPkS3F8ujLkVqh%2B64zA7ZZsO8G6XzbZGGS1TcG%2Fn3LpdUo4Qij9C8beXA4SmGVsT%2BvTsTbMMa10fYFOusBfQcUqUo6NIJzVUoOSj17uLf%2Bz%2F3Ol%2Bx8X0EFxruwoiYvfVPFl4lefj0MZ4Ds%2BaocYzTwMURC0qQ8QVqA62ue28igbxhEayEpNA4hcD5Y2%2BPiKVVnyXzI9UYt0oJDKuocL11D9cEj1BCJ7sqtUXxs%2B2W9mghGUrxt3PcoVixa3VluegeFgJGGs9De30HLxn9UKXYC1VPuDQyghT2drzTUfY4icBMWp3Q48wCo1B4m8VxY7txS2iGhHsfnFxJekx%2BN%2F2%2BzkQahgYP2sH7a9M8PJfbHGbR3UlfkZQNXM3Y%2F3nkL2neKSDO%2BVBgn8Q%3D%3D&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20200601T025631Z&X-Amz-SignedHeaders=host&X-Amz-Expires=300&X-Amz-Credential=ASIAYZTTEKKEQHJ4SM6Q%2F20200601%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Signature=5e1dd4f5e57dbfd173a51d389f5172d22d8c07f95b67b305756fa1cf75795f69"
   
   
-  return(dtToday1)
+  str2 <- "https://docs.google.com/spreadsheets/d/1qhNWZIIrJyMkHvL8bSnsgF64B0-_YxDTypdPsJC55b0/edit?usp=sharing"
+  
+  require(gdata)
+  df = read.xls (str1, sheet = 1, header = TRUE)
+  
+  read_excel(str1, sheet = 1)
 }
 
-
-
-
-getMetricsToday2old <-  function() {  # (date)
+readCovidOntario <- function() {
+  
+  str <- "https://data.ontario.ca/dataset/f4f86e54-872d-43f8-8a86-3892fd3cb5e6/resource/ed270bb8-340b-41f9-a7c6-e8ef587e6d11/download/covidtesting.csv"
   
   
+  dt <-fread (str)
   
-  metric <- c("confirmed", "deaths", "recovered")
-  cols <- c("state", "country")
-  
-  dtCountries1 <<- dtJHU[ 
-    , .(
-      total=sum(.SD), 
-      today= as.integer(.SD[.N]+.SD[.N-1])/2,
-      yesterday= as.integer(.SD[.N-2]+.SD[.N-1])/2,
-      
-    ), keyby = cols, .SDcol=metric]
-  
-  dtCountries1 <<- dtJHU[ 
-    , .(
-      total = sum(.SD), 
-      today2 = as.integer(.SD[.N]+.SD[.N-1])/2,
-      yesterday2 = as.integer(.SD[.N-2]+.SD[.N-1])/2,
-      
-    ), keyby = cols, .SDcol=metric]
-  
-  
-  metric = "confirmed"
-  
-  dtCountries2 <<- dtJHU [ order(date)] [  
-    , .(today= as.integer(.SD[.N]+.SD[.N-1])/2), keyby = cols, .SDcol=metric]
-  dtCountries3 <<- dtJHU [ order(date)] [  
-    , .(yesterday= as.integer(.SD[.N-2]+.SD[.N-1])/2), keyby = cols, .SDcol="confirmed"]
-  
-  a=0
-  dtCountries4 <<- dtJHU [ order(date)] [  
-    , .(DailyAveThisWeek = as.integer( (.SD[.N-a]+.SD[.N-1-a]+.SD[.N-2-a]+.SD[.N-3-a]+.SD[.N-4-a]+.SD[.N-5-a]+.SD[.N-6-a])/7 ) ), keyby = cols, .SDcol="confirmed"]; dtCountries4
-  a=7
-  dtCountries4b <<- dtJHU [ order(date)] [  
-    , .(DailyAveLastWeek = as.integer( (.SD[.N-a]+.SD[.N-1-a]+.SD[.N-2-a]+.SD[.N-3-a]+.SD[.N-4-a]+.SD[.N-5-a]+.SD[.N-6-a])/7 ) ), keyby = cols, .SDcol="confirmed"]; dtCountries4b
-  
-  a=14
-  dtCountries4c <<- dtJHU.dailytotals [ order(date)] [  
-    , .(DailyAveLastWeek2 = as.integer( (.SD[.N-a]+.SD[.N-1-a]+.SD[.N-2-a]+.SD[.N-3-a]+.SD[.N-4-a]+.SD[.N-5-a]+.SD[.N-6-a])/7 ) ), keyby = cols, .SDcol="confirmed"]; dtCountries4b
-  
-  
-  dtRegions <- dtCountries1[dtCountries2][dtCountries3][dtCountries4][dtCountries4b][dtCountries4c][
-    , WeeklyDynamics:=DailyAveThisWeek - DailyAveLastWeek][
-      ,  WeeklyDynamicsLastWeek:=DailyAveLastWeek - DailyAveLastWeek2]
-  
-  dtRegions[order(-WeeklyDynamics)][1:40]; 
-  
-  
-  
-  dtCountriesCases <- dtRegions[ , lapply(.SD, sum, na.rm=T), by=country, .SDcols = c("Cases", "today" ,"yesterday" ,"DailyAveThisWeek", "DailyAveLastWeek", "WeeklyDynamics")][order(-Cases)]; dtCountries[1:30]
-  
-  
-  
-  dtJHU.dailytotals  [, (cols):=NULL]
-  
+  dt %>% summary
 }
-
-
-# ***************************** =====
-testme <- function() {
-  
-  #  source("covid-read.R")
-  
-  dtJHU <-readCovidJHU() %T>% print; 
-  dtCa <- readCovidUofT() %T>% print 
-  dtUS <- readCovidUS() %T>% print
-  dtJHU[.N]; dtCa[.N]; dtUS[.N]
-  dtAll <-   dtJHU %>% rbind ( dtCa ) %>% rbind (dtUS)
-  
-  dateMax <- dtAll$date %>% max ; dateMax
-  
-  
-  
-  dtGeoAll <-readGeo() %T>% print
-  # dtGeoCa <- readGeoCa() %T>% print
-  # dtGeoAll <- dtGeoCa %>% rbind(dtGeo)
-  
-  colsGeo <- c("country",   "state",       "city")
-  colsCases <- c("confirmed", "deaths", "recovered")
-  
-  dtAll [, (colsCases):= lapply(.SD, tidyr::replace_na, 0), .SDcol = colsCases]
-  
-  dt <- dtGeoAll [dtAll, on=colsGeo]
-  
-  dt <- addDerivatives(dt, colsCases, colsGeo) # , input$convolution)
-  
-  
-  
-  dt [ , deathRate:= as.integer(deathsTotal / confirmedTotal * 100 )]
-  dt [ , recoveryRate:= as.integer(recoveredTotal / confirmedTotal * 100 )]
-  
-  dt [ , activeTotal := confirmedTotal - recoveredTotal - deathsTotal]
-  
-  cols <- c("confirmed", "deaths",  "confirmedTotal" ,  "deathsTotal"  ,  "confirmedSpeed"  , "deathsSpeed"   )
-  colsPerMil <- paste0(cols, "PerMil")
-  dt[ , (colsPerMil):= lapply(.SD, function(x) {as.integer(x/population*1000000)}),.SDcols=cols]
-  
-  
-  dt %>% names()
-  
-  colsNeeded <- c(
-    "date"       ,      "country"   ,       "state"      ,      "city"      ,    
-    "lat"       ,       "lng"            ,    "population"    ,
-    # "confirmed",        "deaths"  ,   
-    "confirmedTotal",   "deathsTotal"  ,   "confirmedSpeed" ,  "deathsSpeed"    ,  
-    "confirmedAccel."  , "deathsAccel."  ,  "confirmedGrowth." ,"deathsGrowth.", "deathRate", 
-    "confirmedTotalPerMil" ,"deathsTotalPerMil"  ,  "confirmedSpeedPerMil","deathsSpeedPerMil"  
-  )
-  
-  
-  dtGeo0 <- dt[date == dateMax][, (colsNeeded), with=F]
-  
-  setcolorder(dtGeo0, c( "date", "country" , "state" , "city" , "lat", "lng" , "population"  ) )
-  
-  saveRDS(dtGeo0, "dtGeoAll-0.Rds")  
-  dtToday <- readRDS("dtGeoAll-0.Rds") 
-  
-  
-  dtToday[ , region:=paste0( str_trunc(country, 2, ellipsis = ""), "-", str_trunc(state, 3, ellipsis = ""), ": ",  city)]
-  
-  dtToday %>% names
-  dtToday [order(get(input$sortby))][1:input$showN]
-  dtToday0 <- dtToday[country == "Canada"]
-  
-  
-  # dt000: country=="Canada" & city=="Ottawa" ----
-  
-  
-  
-  dt000 <- dtAll[dtGeo0[country=="Canada" & city=="Ottawa", c(colsGeo, "lat", "lng", "population"), with =F], on=colsGeo]; dt000
-  
-  addDerivatives(dt000, colsCases, colsGeo) # , input$convolution)
-  
-  dt000$result <- "Observed"
-  dt000 <- addPredictions(dt000, colsCases,  dateMax, N=7)
-  dt000 <- addPredictions(dt000, colsCases,  dateMax, N=14)
-  
-  # dt000 <- addPredictions(dt000, colsCases,  dateMax, N=1); 
-  # dt000 <- addPredictions(dt000, colsCases,  dateMax, N=3)
-  # dt000 <- addPredictions(dt000, colsCases,  dateMax, N=2)
-  
-  dt000[ , .(date, confirmedSpeed,result)]
-  
-  
-  dt000[ , region:=paste0( str_trunc(country, 2, ellipsis = ""), "-", str_trunc(state, 3, ellipsis = ""), ": ",  city)]
-  
-  
-  plotTrendsPrediction( dt000, input)
-  
-  # .... plot  ----
-  
-  input$country <- "Canada";  input$state <- "Ontario" ; input$city <- "Ottawa"
-  input$country <- "US";  input$state <- "New York" ; input$city <- "New York"
-  
-  
-  input$sortby = choices[6]; input$sortby
-  
-  input$showN = 20
-  
-  
-  input$city <- STR_ALL
-  
-  dtToday [    country %in%input$country  & state %in%  input$state ] [ city %in% input$city ]  
-  
-  
-  dtToday0 <- dtToday [ country %in% ifelse  (input$country == STR_ALL, dtToday$country %>% unique, input$country )]  ; dtToday0
-  dtToday0 <- dtToday0 [ state %in% ifelse  (input$state == STR_ALL, dtToday0$state %>% unique, input$state )]  ; dtToday0
-  #  dtToday0 <- dtToday0 [ city %in% ifelse  (input$city == STR_ALL, dtToday0$city %>% unique, input$city )  ]  ;dtToday0
-  dtToday0 <- dtToday0 [order(get(input$sortby))][ 1:input$showN] ; dtToday0
-  
-  input$sortby = "confirmedGrowth."
-  input$fRadio = "confirmedSpeed"
-  
-  
-  
-  if (inp$sortby =="name"){
-    dtToday0[ , region := reorder(region, confirmedSpeed)]
-  } 
-  
-  dtToday0$region <- reorder( dtToday0$region , dtToday0[[input$sortby ]] )
-  
-  
-  
-  
-  
-}
-
-
-
-plotToday <- function(dt00, input) {   
-  cols <- c("confirmed", "recovered", "deaths")
-  cols3 <- paste0(cols, input$fRadio)
-  cols3 <- paste0(cols, "Speed")
-  
-  dtToday <- dt00[date==input$dateToday]
-  dtToday [ , deathRate:= as.integer(deathsTotal / confirmedTotal * 100 )+1]
-  
-  if (input$normalize == T & dtToday$population %>% min(na.rm = T) > 1)
-    dtToday[ , (cols3):= lapply(.SD, function(x) {as.integer(x/population*1000000)}),.SDcols=cols3]
-  
-  # dtToday[, region:=reorder(region, get(input$sortby))]
-  
-  g <- dtToday %>% 
-    ggplot(
-      aes(x=  region   )
-    )  + 
-    theme_bw() +
-    # facet_grid(reorder(region, region)~.) +
-    
-    coord_flip() + # facet_grid( . ~ date) +
-    scale_fill_distiller(palette = "Reds", direction = 1) +   #scale_fill_grey(0.3, 0.9) +
-    
-    geom_col(aes(y=confirmedSpeed), alpha=0.3, fill="orange") +
-    geom_point(aes(y=confirmedSpeed-confirmedAccel., size=confirmedTotal), alpha=0.4, col="orange") +     
-    geom_point(aes(y=confirmedSpeed, size=confirmedTotal ), alpha=0.99, col="orange") +
-    
-    # geom_point(aes(y=confirmedSpeed-confirmedAccel., size=confirmedTotal-confirmedSpeed ), alpha=0.4, col="orange") + 
-    
-    geom_col(aes(y=deathsSpeed, fill=deathRate), alpha=0.99) +
-    geom_point(aes(y=deathsSpeed, size=deathsTotal ), alpha=0.9, col="red") +
-    geom_point(aes(y=deathsSpeed-deathsAccel., size=deathsTotal), alpha=0.4, col="red") +
-    
-    geom_segment( aes( 
-      # xend=reorder(region, get(input$sortby)),
-      xend = region,
-      yend=confirmedSpeed, y=confirmedSpeed-confirmedAccel.      ), 
-      size = 1, col="black",
-      arrow = arrow(length = unit(0.1, "cm"))
-    ) +
-    
-    guides(col="none") +
-    
-    theme(legend.position = "bottom") +
-    labs(
-      title= paste0("Infected and deaths per day on ", input$dateToday),
-      # title= paste0("Increase in the number of infected and deaths per day on ", input$dateToday),
-      # title= paste0("Speed and acceleration of pandemic on ", format(Sys.time(), "%d %B, %Y") ),
-      # title= paste0("Pandemic dynamics on ", input$dateToday), # dateMax),
-      
-      # subtitle=
-      #   # r.subtitle(),
-      #   paste0("Top ", min (dtToday %>% nrow, input$showN), " regions ",
-      #          "in ", my.paste(input$region, ", "),
-      #          " (sorted by '", input$sortby, "')."
-      #          # , ". States/Provinces: ", my.paste(input$state, ", ")
-      #   ),
-      
-      size="Total number of cases",
-      fill="Mortality rate",
-      # y="Infected (orange) and deaths (red) per day. \nChange since yesterday is marked by arrow.",
-      y=NULL,
-      x=NULL,
-      
-      caption=caption.covid
-    )
-  
-  
-  if (input$log10 ) {
-    g <- g + scale_y_log10()
-  }
-  
-  g
-  
-}
-
-plotTrends <- function(dt00, input) {
-  cols <- c("confirmed", "recovered", "deaths")
-  cols3 <- paste0(cols, input$fRadio)
-  
-  dtToday <- dt00[date==input$dateToday]
-  dt <- dt00[date >= input$date]
-  
-  
-  if (input$normalize == T)
-    # if (input$normalize == T & dt$population %>% min(na.rm = T) > 1)
-    dt[ , (cols3):= lapply(.SD, function(x) {as.integer(x/population*1000000)}),.SDcols=cols3]
-  
-  
-  g <- ggplot( dt  ) + 
-    
-    facet_wrap(.~
-                 region,
-               scales=ifelse(input$scale, "fixed", "free_y")   
-    ) +
-    #scale_y_continuous(limits = c(0, NA)) +
-    # scale_y_continuous(limits = c(min(dt00[[ cols3[1] ]]), max(dt00[[ cols3[1] ]]) )) +
-    scale_y_continuous(limits = c(min(dt[[ cols3[1] ]]), NA )) +
-    
-    geom_vline(xintercept=input$dateToday, col = "orange", size=2) +
-    geom_vline(xintercept=ymd(input$dateToday)-14, col = "orange", size=1) +
-    # geom_vline(xintercept=input$dateToday-14, col = "orange", size=1) +
-    geom_point(aes_string("date", cols3[1]), alpha=0.5, col="purple", size=2) +
-    geom_line(aes_string("date", cols3[1]), alpha=0.5, col="purple", size=1) +
-    
-    theme_bw() +
-    scale_x_date(date_breaks = "1 week",
-                 date_minor_breaks = "1 day", date_labels = "%b %d") +
-    labs(
-      
-      title= paste0("Dynamics over time: from ", 
-                    input$date , " to " ,  input$dateToday
-                    # , 
-                    # " (", input$fRadio, " over time)"
-      ),
-      
-      # title= paste0("Number of infected from ", input$date , " to " ,  input$dateToday, 
-      #               " (", input$fRadio, " over time)"),
-      # 
-      # subtitle=
-      #   # r.subtitle(),
-      #   paste0("Top ", min (dtToday %>% nrow, input$showN), " regions ",
-      #          "in ", my.paste(input$region, ", "),
-      #          " (sorted by '", input$sortby, "')."
-      #          # , ". States/Provinces: ", my.paste(input$state, ", ")
-      #   ),
-      
-      
-      y=paste("Cases ", input$fRadio, ifelse(input$normalize, " (per Million)","")),
-      # y=paste("Cases"),
-      # y=NULL,
-      x=NULL,
-      
-      caption=caption.covid
-    )
-  
-  if (input$log10 ) {
-    g <- g + scale_y_log10()
-  }
-  
-  if (input$trend ) {
-    
-    # if (input$trend_SE ) {
-    g <- g + geom_smooth(aes_string("date", cols3[1]), size = 1, level=0.99,
-                         method= "gam", # method= "gam",  formula = y ~ s(x,k=3),
-                         # method = "lm", formula = y ~ poly(x, 4),
-                         col = "black", linetype = 2, alpha=0.3)
-    # } else
-    #   {
-    #   g <- g + geom_smooth(aes_string("date", cols3[1]), size = 1, se = FALSE,
-    #                        method= "gam",   # method= "gam",  formula = y ~ s(x,k=3),
-    #                        # method = "lm", formula = y ~ poly(x, 4),
-    #                        col = "black", linetype = 3, alpha=0.5)
-    # }
-    
-  }
-  
-  g
-}
-
-
-
-plotTrendsPrediction <- function(dt00, input) {
-  
-  dt00 <- dt00[date >= input$date]
-  
-  cols <- c("confirmed", "recovered", "deaths")
-  cols3 <- paste0(cols, input$fRadio)
-  
-  cols <- c("confirmed")
-  cols3 <- "confirmedSpeed"
-  
-  
-  g <- ggplot( dt00 [result=="Observed"] ) + 
-    # facet_wrap(.~ region      ) +
-    scale_y_continuous(limits = c(min(dt00[[ cols3[1] ]]), NA )) +
-    # 
-    # geom_vline(xintercept=input$dateToday, col = "orange", size=2) +
-    # geom_vline(xintercept=ymd(input$dateToday)-14, col = "orange", size=1) +
-    # geom_vline(xintercept=input$dateToday-14, col = "orange", size=1) +
-    geom_point(aes_string("date", "confirmedSpeed"), alpha=0.5, col="purple", size=2) +
-    geom_line(aes_string("date", cols3[1]), alpha=0.5, col="purple", size=1) +
-    
-    
-    theme_bw() +
-    scale_x_date(date_breaks = "1 week",
-                 date_minor_breaks = "1 day", date_labels = "%b %d") +
-    labs(
-      
-      title= paste0("Dynamics over time: from ", 
-                    input$date , " to " ,  input$dateToday
-                    # , 
-                    # " (", input$fRadio, " over time)"
-      ),
-      
-      # subtitle=
-      #   # r.subtitle(),
-      #   paste0("Top ", min (dt %>% nrow, input$showN), " regions ",
-      #          "in ", my.paste(input$region, ", "),
-      #          " (sorted by '", input$sortby, "')."
-      #          # , ". States/Provinces: ", my.paste(input$state, ", ")
-      #   ),
-      
-      
-      y=paste("Cases ", input$fRadio, ifelse(input$normalize, " (per Million)","")),
-      # y=paste("Cases"),
-      # y=NULL,
-      x=NULL,
-      
-      caption=caption.covid
-    )
-  
-  
-  if (input$trend ) {
-    
-    # if (input$trend_SE ) {
-    g <- g + geom_smooth(aes_string("date", cols3[1]),  data=dt00, size = 1, level=0.99,
-                         method= "gam", # method= "gam",  formula = y ~ s(x,k=3),
-                         # method = "lm", formula = y ~ poly(x, 4),
-                         col = "black", linetype = 2, alpha=0.3)
-    
-  }
-  
-  g
-}
-
-
-
-
-plotMap <- function(dt, input) {
-  
-  
-  # dt[city==STR_ALL,  region:=paste0( country, ": ", state)]
-  # dt[state==STR_ALL,  region:=paste0( country)]
-  
-  # pal <- colorNumeric(c("green", "yellow", "red"), 0:30)
-  
-  dt[, ratingcol:= 
-       ifelse(confirmedSpeed==0, "green",
-              ifelse(confirmedGrowth.<1, "yellow",
-                     ifelse(confirmedGrowth. == 1, "orange", "red")))
-     ]
-  
-  dt[, strShort:= paste(
-    # region, "- ", confirmedSpeed, "(",  confirmedAccel., ") / day"
-    sprintf("%s: %i (%+.2f) / day. R0=%.3f", 
-            region, 
-            as.integer(confirmedSpeed), confirmedAccel., confirmedGrowth.
-    )
-  )
-  ]
-  
-  
-  # dtToday[, strMessage:= paste0(state, " - ", city, 
-  #                               ":<br><b>Confirmed</b>",
-  #                               "<br>  Total: ", confirmedTotal, "(", confirmedTotalPercentage, "%)",
-  #                               "<br>  Daily: ", confirmed, "(", confirmedPercentage, "% population)", 
-  #                               "<br> <b>Deaths</b>",
-  #                               "<br>  Total: ", deathsTotal, "(", deathsTotalPercentage, "%)",
-  #                               "<br>  Daily: ", deaths, "(", deathsPercentage, "% population)",
-  #                               "<br><b>Death rate </b>", 
-  #                               "<br>  Today: ", deathRate, ". Average: ", deathRateAverage
-  # )  ]
-  
-  dt[, strMessage:= paste(
-    # region,
-    sprintf("<b> %s </b><br>", region),
-    
-    sprintf("Growth rate (R0):  %+.3f (%+.3f)  <br>", as.integer(confirmedGrowth.), confirmedGrowth.Accel),
-    sprintf("INFECTED:  %i (%+.2f) / day <br>", as.integer(confirmedSpeed), confirmedAccel.),
-    # sprintf("Per capita, in a million:  %i (%+i) / day <br>", as.integer(confirmedSpeedPerMil), as.integer(confirmedAccel.PerMil)),
-    sprintf("DEATHS:  %i (%+i) / day <br>", as.integer(deathsSpeed), as.integer(deathsAccel.)),
-    # sprintf("Per capita, in a million:  %i (%+i) / day <br>", as.integer(deathsSpeedPerMil), as.integer(deathsAccel.PerMil)),
-    #     sprintf("TOTAL:  %i (%+.2f) / day <br>", as.integer(confirmedSpeed), confirmedAccel.),
-    # "TOTALS: ", confirmedTotal
-    "MORTALITY RATE: ", deathRate, "(%)"
-    # sprintf("Mortality rate: %.2f (%%)", deathsTotal/confirmedTotal) 
-  )
-  ]
-  
-  
-  leaflet(data = dt) %>% 
-    addTiles() %>%
-    addCircleMarkers(~lng, ~lat, 
-                     #color = ~pal(traveller), 
-                     # radius = ~ confirmedSpeed,
-                     color = ~ratingcol, 
-                     popup = ~as.character(strMessage),
-                     label = ~strShort, #"Click for details", #~region
-                     labelOptions = labelOptions(
-                       noHide = F,
-                       direction = 'auto')
-    ) %>% 
-    #  addMarkers(clusterOptions = markerClusterOptions())
-    #  addMarkers(~lng, ~lat,   popup = ~as.character(confirmedSpeed), label = paste("BWT: ", ~confirmedSpeed)             )  %>%
-    addPopups(dt$lng, 
-              dt$lat, 
-              popup = dt$strShort, # region, 
-              options = popupOptions(
-                closeButton = F) 
-    )   %>%
-    addLegend("bottomleft",
-              colors = c("green", "yellow", "orange", "red"),
-              labels = c(
-                "COVID free",
-                "R0<1",
-                "R0=1",
-                "R0>1"),
-              opacity = 0.7)
-}
-
